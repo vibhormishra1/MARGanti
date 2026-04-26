@@ -2,8 +2,9 @@
 # Key invariants enforced here:
 #   - Time deducted ONCE per round (not per agent)
 #   - all(consensus_flags) guarded against empty list
-#   - async execution via asyncio.to_thread() — safe_call is sync/blocking
+#   - async execution via asyncio.to_thread() — safe_call is now async
 #   - Each agent gets max 2 physics validation attempts
+#   - Hospital participates in ALL rounds (not dropped after round 1)
 #   - Director builds final_consensus_plan from validated_decisions,
 #     falling back to hardcoded demo sequence only if decisions are empty
 
@@ -13,16 +14,21 @@ from typing import Any
 
 from services.gemini_service import safe_call
 from core.prompt_builder import build_agent_prompt, build_director_prompt
-from physics.physics_engine import validate_physics, TICK_MINUTES
+from physics.physics_engine import validate_physics, TICK_MINUTES, NODE_DISTANCES, ENVIRONMENT_RULES
 from schemas.state_models import AgentResponse, SwarmDirectorResponse
 
 logger = logging.getLogger(__name__)
 
 MAX_ROUNDS = 3
 
-# Agents active in round 1. NGO joins from round 2.
-ROUND_1_AGENTS = ["hospital", "transport"]
-LATER_AGENTS   = ["ngo"]
+# Hospital stays active every round — its needs don't resolve until plan is approved.
+# Transport is the primary logistics agent — always active.
+# NGO is the escalation agent — joins round 2+ as backup when Transport struggles.
+AGENTS_BY_ROUND = {
+    1: ["hospital", "transport"],
+    2: ["hospital", "transport", "ngo"],
+    3: ["hospital", "transport", "ngo"],
+}
 
 
 async def process_simulation_round(state: dict) -> dict:
@@ -42,19 +48,17 @@ async def process_simulation_round(state: dict) -> dict:
     """
     round_num = state.get("round_number", 0) + 1
     state["round_number"] = round_num
-    logger.info("[Runner] Starting round %d", round_num)
+    logger.info("[Runner] Round %d starting. Time left: %d min.",
+                round_num, state["crisis"]["time_remaining_minutes"])
 
     # ── Termination check ───────────────────────────────────────────────────
     if round_num > MAX_ROUNDS or state.get("status") == "forced_resolution":
-        logger.info("[Runner] Max rounds reached — invoking Swarm Director.")
+        logger.info("[Runner] Max rounds reached — forcing Director.")
         state["status"] = "forced_resolution"
         return await _run_swarm_director(state)
 
     # ── Determine active agents for this round ──────────────────────────────
-    active_agents = list(ROUND_1_AGENTS)
-    if round_num >= 2:
-        active_agents.extend(LATER_AGENTS)
-
+    active_agents = AGENTS_BY_ROUND.get(round_num, ["hospital", "transport", "ngo"])
     consensus_flags: list[bool] = []
 
     # ── Agent execution loop ────────────────────────────────────────────────
@@ -66,11 +70,10 @@ async def process_simulation_round(state: dict) -> dict:
         for attempt in range(2):
             prompt = build_agent_prompt(agent_name, state, physics_error)
 
-            # safe_call is synchronous (time.sleep inside).
-            # asyncio.to_thread runs it in a thread pool — event loop not blocked.
-            raw = await asyncio.to_thread(safe_call, prompt, AgentResponse)
+            # safe_call is now fully async (uses asyncio.to_thread + wait_for internally)
+            raw = await safe_call(prompt, AgentResponse)
 
-            # Inject metadata that the LLM schema doesn't provide
+            # Overwrite agent/round — Gemini fills these but may be wrong
             raw["round"] = round_num
             raw["agent"] = agent_name
 
@@ -78,46 +81,49 @@ async def process_simulation_round(state: dict) -> dict:
 
             if validation["valid"]:
                 final_response = raw
-                logger.info("[Physics] %s passed (attempt %d)", agent_name, attempt + 1)
+                # Capture validated transport decisions for Director plan building
+                if (raw.get("action") in ("offer", "resolve")
+                        and raw.get("proposed_transport") in ("truck", "drone")
+                        and not raw.get("degraded")):
+                    state["validated_decisions"].append({
+                        "method":      raw["proposed_transport"],
+                        "from":        raw.get("from_node"),
+                        "to":          raw.get("to_node"),
+                        "quantity":    raw.get("quantity", 0),
+                        "eta_minutes": _compute_eta(
+                            raw.get("from_node"), raw.get("to_node"),
+                            raw["proposed_transport"], state
+                        ),
+                    })
+                logger.info("[Runner] %s passed physics (attempt %d).", agent_name, attempt + 1)
                 break
             else:
                 physics_error = validation["error"]
-                logger.warning(
-                    "[Physics] %s BLOCKED (attempt %d): %s",
-                    agent_name, attempt + 1, physics_error
-                )
+                logger.warning("[Physics] Blocked %s (attempt %d): %s",
+                               agent_name, attempt + 1, physics_error)
 
         # If both attempts failed physics, use last response with error annotation
         if final_response is None:
-            logger.error("[Physics] %s failed both attempts — using last response.", agent_name)
+            logger.error("[Runner] %s failed both attempts.", agent_name)
             raw["public_message"] = f"Proposal blocked: {physics_error}"
             raw["consensus_reached"] = False
             final_response = raw
 
         state["shared_history"].append(final_response)
-
-        # Track validated decisions separately from raw history
-        if final_response.get("action") in ("offer", "resolve") and not final_response.get("degraded"):
-            state["validated_decisions"].append(final_response)
-
         consensus_flags.append(bool(final_response.get("consensus_reached", False)))
 
     # ── Deduct time ONCE after all agents complete (REQ-M4-03) ─────────────
     # This is the ONLY place TICK_MINUTES is subtracted.
-    # Physics engine defines TICK_MINUTES; agent_runner applies it once per round.
     state["crisis"]["time_remaining_minutes"] = max(
-        0,
-        state["crisis"]["time_remaining_minutes"] - TICK_MINUTES
+        0, state["crisis"]["time_remaining_minutes"] - TICK_MINUTES
     )
-    logger.info(
-        "[Runner] Round %d complete. Time remaining: %d min.",
-        round_num, state["crisis"]["time_remaining_minutes"]
-    )
+    logger.info("[Runner] Round %d done. Time left: %d min.",
+                round_num, state["crisis"]["time_remaining_minutes"])
 
     # ── Consensus check ─────────────────────────────────────────────────────
     # Guard: all([]) is True in Python — explicit length check required.
     if consensus_flags and all(consensus_flags):
-        logger.info("[Runner] Consensus reached in round %d.", round_num)
+        logger.info("[Runner] Consensus in round %d.", round_num)
         state["status"] = "consensus_reached"
         return await _run_swarm_director(state)
 
@@ -135,71 +141,63 @@ async def _run_swarm_director(state: dict) -> dict:
     """
     logger.info("[Director] Synthesising final plan.")
     prompt       = build_director_prompt(state)
-    director_res = await asyncio.to_thread(safe_call, prompt, SwarmDirectorResponse)
+    director_res = await safe_call(prompt, SwarmDirectorResponse)
 
     # ── Build transport_sequence from validated_decisions ───────────────────
     decisions = state.get("validated_decisions", [])
     if decisions:
         transport_sequence = [
-            {
-                "method":      d.get("proposed_transport", "drone"),
-                "from":        d.get("from_node", "NGO_BASE_E"),
-                "to":          d.get("to_node", "WAYPOINT_C"),
-                "quantity":    d.get("quantity", 100),
-                # ETA calculated by physics engine using NODE_DISTANCES
-                "eta_minutes": _compute_eta(
-                    d.get("from_node"), d.get("to_node"),
-                    d.get("proposed_transport", "drone"), state
-                ),
-            }
-            for d in decisions
-            if d.get("proposed_transport") in ("truck", "drone")
+            d for d in decisions
+            if d.get("method") in ("truck", "drone") and d.get("from") and d.get("to")
         ]
     else:
         # Pure demo fallback — only used if no agent reached an offer/resolve
-        logger.warning("[Director] No validated_decisions — using demo fallback route.")
+        logger.warning("[Director] No validated_decisions — using demo fallback.")
         transport_sequence = [
-            {"method": "drone", "from": "NGO_BASE_E",  "to": "WAYPOINT_C",    "quantity": 100, "eta_minutes": 11},
-            {"method": "truck", "from": "WAYPOINT_C",  "to": "COLD_STORAGE_D","quantity": 100, "eta_minutes": 72},
+            {"method": "drone", "from": "NGO_BASE_E",  "to": "WAYPOINT_C",     "quantity": 100, "eta_minutes": 11},
+            {"method": "truck", "from": "WAYPOINT_C",  "to": "COLD_STORAGE_D", "quantity": 100, "eta_minutes": 72},
         ]
 
+    route_nodes = _extract_route_nodes(transport_sequence)
+
     state["final_consensus_plan"] = {
-        "status":          director_res.get("approval_status", "FAILED"),
-        "confidence_note": director_res.get("executive_summary", "Plan finalised."),
-        "risk_flags":      director_res.get("risk_flags", []),
-        "route_nodes":     _extract_route_nodes(transport_sequence),
+        "status":             director_res.get("approval_status", "FAILED"),
+        "confidence_note":    director_res.get("executive_summary", "Plan finalised."),
+        "risk_flags":         director_res.get("risk_flags", []),
+        "route_nodes":        route_nodes,
         "transport_sequence": transport_sequence,
     }
 
     # Push Director narrative to shared_history for the chat feed
     state["shared_history"].append({
-        "agent":          "swarm_director",
-        "round":          state["round_number"],
-        "public_message": director_res.get("executive_summary", "Plan finalised."),
-        "priority":       "critical",
+        "agent":              "swarm_director",
+        "round":              state["round_number"],
+        "public_message":     director_res.get("executive_summary", "Plan finalised."),
         "internal_reasoning": None,
+        "priority":           "critical",
+        "consensus_reached":  True,
+        "degraded":           False,
     })
 
-    logger.info("[Director] Final plan built: %s", state["final_consensus_plan"]["status"])
+    logger.info("[Director] Plan: %s", state["final_consensus_plan"]["status"])
     return state
 
 
-def _compute_eta(from_node: str | None, to_node: str | None, transport: str, state: dict) -> int:
+def _compute_eta(from_node, to_node, transport, state) -> int:
     """
     Deterministic ETA calculation using NODE_DISTANCES.
-    Returns 0 if route is unknown (shouldn't happen — physics gate blocks unknown routes).
+    Returns 0 if route is unknown.
     """
-    from physics.physics_engine import NODE_DISTANCES, ENVIRONMENT_RULES
     if not from_node or not to_node:
         return 0
+    scenario = state["crisis"]["type"]
+    rules    = ENVIRONMENT_RULES.get(scenario, ENVIRONMENT_RULES["cyclone_grid_failure"])
     distance = NODE_DISTANCES.get((from_node, to_node), 0)
-    scenario  = state["crisis"]["type"]
-    rules     = ENVIRONMENT_RULES.get(scenario, ENVIRONMENT_RULES["cyclone_grid_failure"])
-    speed     = rules["drone_speed_kmh"] if transport == "drone" else rules["truck_max_speed_kmh"]
-    return int((distance / speed) * 60) if speed > 0 else 0
+    speed    = rules["drone_speed_kmh"] if transport == "drone" else rules["truck_max_speed_kmh"]
+    return int((distance / speed) * 60) if speed > 0 and distance > 0 else 0
 
 
-def _extract_route_nodes(transport_sequence: list[dict]) -> list[str]:
+def _extract_route_nodes(transport_sequence: list) -> list[str]:
     """
     Extracts ordered unique node IDs from transport_sequence for map polylines.
     """
