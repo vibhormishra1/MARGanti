@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "target": "antigravity",
+    "target": "marg-anti",
     "public": "frontend/dist",
     "ignore": [
       "firebase.json",
