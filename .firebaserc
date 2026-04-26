@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "margco-eae9c"
+  },
+  "targets": {
+    "margco-eae9c": {
+      "hosting": {
+        "antigravity": [
+          "marg-anti"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
