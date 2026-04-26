@@ -19,7 +19,7 @@ jobs:
           VITE_FIREBASE_DATABASE_URL: https://margco-eae9c-default-rtdb.firebaseio.com
           VITE_FIREBASE_PROJECT_ID: margco-eae9c
           VITE_GOOGLE_MAPS_KEY: AIzaSyC1MlHFEZjK7mHUBweKegOcFi8qdOu-xjo
-          VITE_NODE_BASE_URL: ""
+          VITE_NODE_BASE_URL: https://marganti-production-2c70.up.railway.app
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}

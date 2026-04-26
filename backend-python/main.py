@@ -45,7 +45,10 @@ app = FastAPI(
 # REQ-M3-03: CORS — only Node's port, not wildcard
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:4000"],
+    allow_origins=[
+        "http://localhost:4000",
+        "https://marganti-production-2c70.up.railway.app",
+    ],
     allow_credentials=True,
     allow_methods=["POST", "GET"],
     allow_headers=["Content-Type"],  # explicit — not wildcard
