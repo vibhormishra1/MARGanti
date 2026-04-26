@@ -50,6 +50,17 @@ async def process_simulation_round(state: dict) -> dict:
     """
     round_num = state.get("round_number", 0) + 1
     state["round_number"] = round_num
+
+    # ── Firebase null coercion guard ────────────────────────────────────────
+    # Firebase RTDB converts empty arrays [] to null/missing keys.
+    # Ensure all list fields exist before any code touches them.
+    if not state.get("shared_history"):
+        state["shared_history"] = []
+    if not state.get("validated_decisions"):
+        state["validated_decisions"] = []
+    if not state.get("conflicts"):
+        state["conflicts"] = []
+
     logger.info("[Runner] Round %d starting. Time left: %d min.",
                 round_num, state["crisis"]["time_remaining_minutes"])
 

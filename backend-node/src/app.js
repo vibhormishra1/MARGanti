@@ -11,6 +11,10 @@ initFirebase();
 
 const app = express();
 
+// Railway / cloud proxies set X-Forwarded-For — Express must trust it
+// or express-rate-limit crashes with ERR_ERL_UNEXPECTED_X_FORWARDED_FOR
+app.set("trust proxy", 1);
+
 // Security headers — FAANG standard, one-liner
 // Must come before routes
 app.use(helmet());
