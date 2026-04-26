@@ -7,8 +7,8 @@ const ALLOWED_ORIGINS = new Set([
   "http://localhost:5173", // Vite default
   "http://localhost:5174", // Vite port fallback
   "http://localhost:3000", // CRA
-  // Add Firebase Hosting domain before deployment:
-  // "https://your-project.web.app",
+  "https://marg-anti.web.app",            // Firebase Hosting
+  "https://marg-anti.firebaseapp.com",    // Firebase Hosting alt
 ]);
 
 export const corsMiddleware = cors({
