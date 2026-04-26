@@ -12,6 +12,8 @@ import asyncio
 import logging
 from typing import Any
 
+from typing import Optional, List
+
 from services.gemini_service import safe_call
 from core.prompt_builder import build_agent_prompt, build_director_prompt
 from physics.physics_engine import validate_physics, TICK_MINUTES, NODE_DISTANCES, ENVIRONMENT_RULES
@@ -59,12 +61,12 @@ async def process_simulation_round(state: dict) -> dict:
 
     # ── Determine active agents for this round ──────────────────────────────
     active_agents = AGENTS_BY_ROUND.get(round_num, ["hospital", "transport", "ngo"])
-    consensus_flags: list[bool] = []
+    consensus_flags = []  # type: List[bool]
 
     # ── Agent execution loop ────────────────────────────────────────────────
     for agent_name in active_agents:
-        physics_error: str | None = None
-        final_response: dict | None = None
+        physics_error = None  # Optional[str]
+        final_response = None  # Optional[dict]
 
         # Up to 2 attempts per agent to pass the physics gate
         for attempt in range(2):
@@ -197,11 +199,11 @@ def _compute_eta(from_node, to_node, transport, state) -> int:
     return int((distance / speed) * 60) if speed > 0 and distance > 0 else 0
 
 
-def _extract_route_nodes(transport_sequence: list) -> list[str]:
+def _extract_route_nodes(transport_sequence: list) -> list:
     """
     Extracts ordered unique node IDs from transport_sequence for map polylines.
     """
-    nodes: list[str] = []
+    nodes = []  # type: List[str]
     for seg in transport_sequence:
         if seg.get("from") and seg["from"] not in nodes:
             nodes.append(seg["from"])

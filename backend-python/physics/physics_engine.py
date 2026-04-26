@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 # Bidirectional lookup: (origin, destination) → km
 # These are the ONLY valid routes. If the LLM proposes a route not in this
 # table, it receives PHYSICS_UNKNOWN_ROUTE.
-NODE_DISTANCES: dict[Tuple[str, str], int] = {
+NODE_DISTANCES = {  # type: Dict[Tuple[str, str], int]
     ("HOSPITAL_A",    "DEPOT_B"):         45,
     ("HOSPITAL_A",    "WAYPOINT_C"):      20,
     ("HOSPITAL_A",    "COLD_STORAGE_D"): 38,

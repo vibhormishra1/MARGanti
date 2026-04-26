@@ -1,13 +1,11 @@
 # Handles all Gemini API communication.
 # Key decisions:
 #   - Model instantiated LAZILY (get_model()) — not at import time.
-#     Import-time instantiation runs before load_dotenv() in main.py,
-#     meaning api_key is None and genai.configure() receives nothing.
-#   - safe_call() is now fully async — uses asyncio.to_thread for the
+#   - safe_call() is fully async — uses asyncio.to_thread for the
 #     blocking SDK call and asyncio.wait_for to kill hung connections.
 #   - Exponential backoff: 1s → 2s between retries, using asyncio.sleep.
-#   - response_schema enforces structured output at the API level —
-#     no json.loads() on free-form text.
+#   - response_schema uses a plain dict schema — NOT a Pydantic class,
+#     because Gemini rejects schemas with 'default' fields.
 
 import os
 import json
@@ -19,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 # Module-level sentinel — model built once per process lifetime after config
 _model = None
-_GEMINI_TIMEOUT = 12.0  # seconds before we kill the call
+_GEMINI_TIMEOUT = 15.0  # seconds before we kill the call
 
 
 def get_model():
@@ -36,56 +34,94 @@ def get_model():
                 "Check that load_dotenv() ran before this call."
             )
         genai.configure(api_key=api_key)
-        # REQ-M3-05: gemini-2.0-flash for free-tier latency
         _model = genai.GenerativeModel("gemini-2.0-flash")
         logger.info("[Gemini] Model initialised: gemini-2.0-flash")
     return _model
 
 
-def _blocking_call(prompt: str, schema_class) -> dict:
+# ── Plain dict schemas for Gemini structured output ──────────────────────────
+# Gemini's response_schema rejects Pydantic classes that have `default` values.
+# So we define the schemas as plain dicts that Gemini understands.
+
+AGENT_RESPONSE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "agent":              {"type": "string"},
+        "round":              {"type": "integer"},
+        "action":             {"type": "string", "enum": ["request", "offer", "reject", "hold", "resolve"]},
+        "resource":           {"type": "string"},
+        "quantity":           {"type": "integer"},
+        "proposed_transport": {"type": "string", "enum": ["truck", "drone", "none"]},
+        "from_node":          {"type": "string"},
+        "to_node":            {"type": "string"},
+        "internal_reasoning": {"type": "string"},
+        "public_message":     {"type": "string"},
+        "priority":           {"type": "string", "enum": ["low", "medium", "high", "critical"]},
+        "consensus_reached":  {"type": "boolean"},
+    },
+    "required": [
+        "agent", "round", "action", "resource", "quantity",
+        "proposed_transport", "internal_reasoning", "public_message",
+        "priority", "consensus_reached"
+    ],
+}
+
+DIRECTOR_RESPONSE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "approval_status":   {"type": "string", "enum": ["APPROVED", "MODIFIED", "FORCED", "FAILED"]},
+        "executive_summary": {"type": "string"},
+        "risk_flags":        {"type": "array", "items": {"type": "string"}},
+    },
+    "required": ["approval_status", "executive_summary", "risk_flags"],
+}
+
+# Map from Pydantic class name to dict schema
+_SCHEMA_MAP = {
+    "AgentResponse": AGENT_RESPONSE_SCHEMA,
+    "SwarmDirectorResponse": DIRECTOR_RESPONSE_SCHEMA,
+}
+
+
+def _blocking_call(prompt, schema_class):
     """
     Pure synchronous Gemini call.
     Runs inside asyncio.to_thread — never called directly from async context.
     """
     model = get_model()
+
+    # Resolve the dict schema from the Pydantic class name
+    schema_name = schema_class.__name__ if hasattr(schema_class, '__name__') else str(schema_class)
+    dict_schema = _SCHEMA_MAP.get(schema_name)
+
+    gen_config_kwargs = {
+        "response_mime_type": "application/json",
+        "temperature": 0.15,
+        "top_p": 0.85,
+        "max_output_tokens": 500,
+    }
+    if dict_schema:
+        gen_config_kwargs["response_schema"] = dict_schema
+
     response = model.generate_content(
         prompt,
-        generation_config=genai.GenerationConfig(
-            response_mime_type="application/json",
-            response_schema=schema_class,  # API-level enforcement
-            temperature=0.15,              # REQ-M3-06: low temperature
-            top_p=0.85,
-            max_output_tokens=400,
-        )
+        generation_config=genai.GenerationConfig(**gen_config_kwargs),
     )
     return json.loads(response.text)
 
 
-async def safe_call(prompt: str, schema_class, retries: int = 2) -> dict:
+async def safe_call(prompt, schema_class, retries=2):
     """
     Async wrapper around the blocking Gemini call.
-    - asyncio.to_thread: runs blocking SDK in thread pool (event loop never blocked)
+    - asyncio.to_thread: runs blocking SDK in thread pool
     - asyncio.wait_for: kills hung connections after _GEMINI_TIMEOUT seconds
-    - Exponential backoff: 1s → 2s between retries, using asyncio.sleep (non-blocking)
-
-    Parameters
-    ----------
-    prompt       : The fully-assembled agent prompt string.
-    schema_class : Pydantic model class — passed as response_schema so
-                   Gemini is forced to return exactly this structure.
-    retries      : Max retries on failure (default 2 → 3 total attempts).
-
-    Returns
-    -------
-    dict : Parsed response matching schema_class fields, OR the fallback
-           degraded dict if all retries fail.
+    - Exponential backoff: 1s → 2s between retries
     """
     wait = 1
     last_err = None
 
     for attempt in range(retries + 1):
         try:
-            # wait_for kills the coroutine if Gemini hangs
             result = await asyncio.wait_for(
                 asyncio.to_thread(_blocking_call, prompt, schema_class),
                 timeout=_GEMINI_TIMEOUT,
@@ -106,7 +142,7 @@ async def safe_call(prompt: str, schema_class, retries: int = 2) -> dict:
             )
 
         if attempt < retries:
-            await asyncio.sleep(wait)  # non-blocking sleep
+            await asyncio.sleep(wait)
             wait *= 2
 
     logger.error(
@@ -114,7 +150,7 @@ async def safe_call(prompt: str, schema_class, retries: int = 2) -> dict:
         retries + 1, str(last_err)
     )
 
-    # REQ-M3-21: Fallback — never crash. Return a hold action with degraded=True.
+    # Fallback — never crash. Return a hold action with degraded=True.
     return {
         "agent":              "system",
         "round":              0,

@@ -17,7 +17,7 @@ VALID_NODES = [
 def build_agent_prompt(
     role: str,
     state: dict,
-    physics_error: str | None = None,
+    physics_error=None,
 ) -> str:
     """
     Builds a Chain-of-Thought prompt for a working agent.
