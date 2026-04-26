@@ -1,11 +1,10 @@
 # Handles all Gemini API communication.
-# Key decisions:
+# Key features:
+#   - API key rotation: supports multiple keys (comma-separated in GEMINI_API_KEY)
+#     Auto-rotates to next key on quota exhaustion (429 / ResourceExhausted)
 #   - Model instantiated LAZILY (get_model()) — not at import time.
-#   - safe_call() is fully async — uses asyncio.to_thread for the
-#     blocking SDK call and asyncio.wait_for to kill hung connections.
-#   - Exponential backoff: 1s → 2s between retries, using asyncio.sleep.
-#   - response_schema uses a plain dict schema — NOT a Pydantic class,
-#     because Gemini rejects schemas with 'default' fields.
+#   - safe_call() is fully async — uses asyncio.to_thread + asyncio.wait_for
+#   - response_schema uses plain dict schemas (Gemini rejects Pydantic defaults)
 
 import os
 import json
@@ -15,34 +14,50 @@ import google.generativeai as genai
 
 logger = logging.getLogger(__name__)
 
-# Module-level sentinel — model built once per process lifetime after config
 _model = None
-_GEMINI_TIMEOUT = 15.0  # seconds before we kill the call
+_GEMINI_TIMEOUT = 15.0
+
+# ── Multi-key rotation ───────────────────────────────────────────────────────
+_api_keys = []
+_current_key_index = 0
+
+
+def _load_keys():
+    """Parse comma-separated API keys from env."""
+    global _api_keys
+    raw = os.getenv("GEMINI_API_KEY", "")
+    _api_keys = [k.strip() for k in raw.split(",") if k.strip()]
+    if not _api_keys:
+        raise EnvironmentError(
+            "GEMINI_API_KEY is not set. "
+            "Set one or more keys (comma-separated) in the environment."
+        )
+    logger.info("[Gemini] Loaded %d API key(s).", len(_api_keys))
+
+
+def _rotate_key():
+    """Switch to the next API key and reconfigure the model."""
+    global _current_key_index, _model
+    _current_key_index = (_current_key_index + 1) % len(_api_keys)
+    new_key = _api_keys[_current_key_index]
+    genai.configure(api_key=new_key)
+    _model = genai.GenerativeModel("gemini-2.0-flash")
+    logger.info("[Gemini] Rotated to API key #%d.", _current_key_index + 1)
 
 
 def get_model():
-    """
-    Lazy initialiser. Called on first agent execution, not at import.
-    By this point load_dotenv() has already run in main.py.
-    """
+    """Lazy initialiser. Called on first agent execution."""
     global _model
     if _model is None:
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            raise EnvironmentError(
-                "GEMINI_API_KEY is not set. "
-                "Check that load_dotenv() ran before this call."
-            )
-        genai.configure(api_key=api_key)
+        if not _api_keys:
+            _load_keys()
+        genai.configure(api_key=_api_keys[_current_key_index])
         _model = genai.GenerativeModel("gemini-2.0-flash")
-        logger.info("[Gemini] Model initialised: gemini-2.0-flash")
+        logger.info("[Gemini] Model initialised: gemini-2.0-flash (key #%d)", _current_key_index + 1)
     return _model
 
 
 # ── Plain dict schemas for Gemini structured output ──────────────────────────
-# Gemini's response_schema rejects Pydantic classes that have `default` values.
-# So we define the schemas as plain dicts that Gemini understands.
-
 AGENT_RESPONSE_SCHEMA = {
     "type": "object",
     "properties": {
@@ -76,21 +91,21 @@ DIRECTOR_RESPONSE_SCHEMA = {
     "required": ["approval_status", "executive_summary", "risk_flags"],
 }
 
-# Map from Pydantic class name to dict schema
 _SCHEMA_MAP = {
     "AgentResponse": AGENT_RESPONSE_SCHEMA,
     "SwarmDirectorResponse": DIRECTOR_RESPONSE_SCHEMA,
 }
 
 
-def _blocking_call(prompt, schema_class):
-    """
-    Pure synchronous Gemini call.
-    Runs inside asyncio.to_thread — never called directly from async context.
-    """
-    model = get_model()
+def _is_quota_error(exc):
+    """Check if the exception is a Gemini rate-limit / quota error."""
+    msg = str(exc).lower()
+    return any(kw in msg for kw in ("resource exhausted", "429", "quota", "rate limit"))
 
-    # Resolve the dict schema from the Pydantic class name
+
+def _blocking_call(prompt, schema_class):
+    """Pure synchronous Gemini call."""
+    model = get_model()
     schema_name = schema_class.__name__ if hasattr(schema_class, '__name__') else str(schema_class)
     dict_schema = _SCHEMA_MAP.get(schema_name)
 
@@ -112,13 +127,12 @@ def _blocking_call(prompt, schema_class):
 
 async def safe_call(prompt, schema_class, retries=2):
     """
-    Async wrapper around the blocking Gemini call.
-    - asyncio.to_thread: runs blocking SDK in thread pool
-    - asyncio.wait_for: kills hung connections after _GEMINI_TIMEOUT seconds
-    - Exponential backoff: 1s → 2s between retries
+    Async wrapper with API key rotation on quota exhaustion.
+    If a key is exhausted, rotates to the next key and retries.
     """
     wait = 1
     last_err = None
+    keys_tried = 0
 
     for attempt in range(retries + 1):
         try:
@@ -130,27 +144,24 @@ async def safe_call(prompt, schema_class, retries=2):
 
         except asyncio.TimeoutError:
             last_err = TimeoutError(f"Gemini call timed out after {_GEMINI_TIMEOUT}s")
-            logger.warning(
-                "[Gemini] Attempt %d/%d — TIMEOUT. Retrying in %ds.",
-                attempt + 1, retries + 1, wait
-            )
+            logger.warning("[Gemini] Attempt %d/%d — TIMEOUT.", attempt + 1, retries + 1)
+
         except Exception as exc:
             last_err = exc
-            logger.warning(
-                "[Gemini] Attempt %d/%d — %s. Retrying in %ds.",
-                attempt + 1, retries + 1, str(exc), wait
-            )
+            if _is_quota_error(exc) and len(_api_keys) > 1 and keys_tried < len(_api_keys):
+                keys_tried += 1
+                logger.warning("[Gemini] Key #%d quota exhausted. Rotating...", _current_key_index + 1)
+                _rotate_key()
+                # Don't sleep — immediately retry with new key
+                continue
+            logger.warning("[Gemini] Attempt %d/%d — %s.", attempt + 1, retries + 1, str(exc))
 
         if attempt < retries:
             await asyncio.sleep(wait)
             wait *= 2
 
-    logger.error(
-        "[Gemini] All %d attempts failed. Last: %s",
-        retries + 1, str(last_err)
-    )
+    logger.error("[Gemini] All %d attempts failed. Last: %s", retries + 1, str(last_err))
 
-    # Fallback — never crash. Return a hold action with degraded=True.
     return {
         "agent":              "system",
         "round":              0,
