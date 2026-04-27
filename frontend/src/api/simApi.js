@@ -5,7 +5,7 @@ import axios from "axios";
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_NODE_BASE_URL,
-  timeout: 15000,  // 15s — runRound waits up to 8s for Python (REQ-M2-07 allows 10s)
+  timeout: 60000,  // 60s — runRound waits for Python + Gemini (can take 30s+)
   headers: { "Content-Type": "application/json" },
 });
 

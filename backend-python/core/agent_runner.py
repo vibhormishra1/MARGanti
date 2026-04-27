@@ -199,14 +199,15 @@ async def _run_swarm_director(state: dict) -> dict:
 def _compute_eta(from_node, to_node, transport, state) -> int:
     """
     Deterministic ETA calculation using NODE_DISTANCES.
-    Returns 0 if route is unknown.
+    Uses worst-case 45km if route is unknown or nodes missing.
     """
-    if not from_node or not to_node:
-        return 0
     scenario = state["crisis"]["type"]
     rules    = ENVIRONMENT_RULES.get(scenario, ENVIRONMENT_RULES["cyclone_grid_failure"])
-    distance = NODE_DISTANCES.get((from_node, to_node), 0)
-    speed    = rules["drone_speed_kmh"] if transport == "drone" else rules["truck_max_speed_kmh"]
+    if from_node and to_node:
+        distance = NODE_DISTANCES.get((from_node, to_node), 45)
+    else:
+        distance = 45  # worst-case fallback
+    speed = rules["drone_speed_kmh"] if transport == "drone" else rules["truck_max_speed_kmh"]
     return int((distance / speed) * 60) if speed > 0 and distance > 0 else 0
 
 

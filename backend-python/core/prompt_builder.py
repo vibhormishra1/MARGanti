@@ -90,7 +90,8 @@ INSTRUCTIONS
 ------------
 1. Think step-by-step (write your reasoning in internal_reasoning).
 2. Propose ONE concrete action: request, offer, reject, hold, or resolve.
-3. If proposing transport, specify from_node and to_node using VALID NODE IDs only.
+3. You MUST ALWAYS specify from_node and to_node using VALID NODE IDs from the list above.
+   Every proposal REQUIRES both from_node and to_node — NEVER leave them null or empty.
 4. Do NOT generate GPS coordinates — only node IDs.
 5. Do NOT calculate ETA — the physics engine does that.
 6. Set consensus_reached=true only if you believe the current plan is viable end-to-end.

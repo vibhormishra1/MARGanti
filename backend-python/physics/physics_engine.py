@@ -119,32 +119,33 @@ def validate_physics(agent_response: dict, current_state: dict) -> dict:
                         f"COLD_STORAGE_D, NGO_BASE_E."
                     ),
                 }
-
-            speed_kmh = (
-                rules["truck_max_speed_kmh"]
-                if transport == "truck"
-                else rules["drone_speed_kmh"]
-            )
-            # ETA in minutes — deterministic, no LLM involvement
-            eta_minutes = (distance_km / speed_kmh) * 60
-
-            if eta_minutes > time_left:
-                return {
-                    "valid": False,
-                    "error": (
-                        f"PHYSICS_ETA_VIOLATION: {transport.title()} ETA for "
-                        f"{from_node} → {to_node} is {eta_minutes:.0f} min. "
-                        f"Only {time_left} min remain before spoilage. "
-                        f"Switch to drone or choose a closer waypoint."
-                    ),
-                }
-        # If from_node/to_node not declared but transport is proposed,
-        # we can't validate ETA. Log a warning but don't block.
         else:
+            # Gemini omitted nodes — use worst-case distance so ETA
+            # is always realistic (never 0 min in the UI).
+            distance_km = 45
             logger.warning(
-                "[Physics] Agent proposed %s but did not declare from_node/to_node. "
-                "ETA cannot be validated.",
+                "[Physics] Agent proposed %s without from_node/to_node. "
+                "Using worst-case 45km for ETA validation.",
                 transport,
             )
+
+        speed_kmh = (
+            rules["truck_max_speed_kmh"]
+            if transport == "truck"
+            else rules["drone_speed_kmh"]
+        )
+        # ETA in minutes — deterministic, no LLM involvement
+        eta_minutes = (distance_km / speed_kmh) * 60
+
+        if eta_minutes > time_left:
+            return {
+                "valid": False,
+                "error": (
+                    f"PHYSICS_ETA_VIOLATION: {transport.title()} ETA for "
+                    f"{from_node or 'UNKNOWN'} → {to_node or 'UNKNOWN'} is {eta_minutes:.0f} min. "
+                    f"Only {time_left} min remain before spoilage. "
+                    f"Switch to drone or choose a closer waypoint."
+                ),
+            }
 
     return {"valid": True, "error": None}

@@ -114,7 +114,7 @@ export default function MapView({ finalPlan }) {
   }
 
   return (
-    <div id="map-view" className="flex-1 relative">
+    <div id="map-view" className="flex-1 relative" style={{ minHeight: "300px" }}>
       {/* Map overlay label */}
       <div className="absolute top-3 left-3 z-10 bg-black/70 px-3 py-1.5 rounded text-xs text-blue-400 font-mono border border-blue-900 backdrop-blur-sm">
         COASTAL MAHARASHTRA — CRISIS ZONE

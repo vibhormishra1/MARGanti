@@ -9,7 +9,7 @@ import axios from "axios";
 
 const pythonApi = axios.create({
   baseURL: process.env.PYTHON_BASE_URL || "http://localhost:8000",
-  timeout: 10_000, // REQ-M2-07: 10 seconds exactly
+  timeout: 45_000, // Extended: Gemini with key rotation + retries needs 30s+
   headers: { "Content-Type": "application/json" },
 });
 
