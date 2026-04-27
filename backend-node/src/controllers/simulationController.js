@@ -63,16 +63,9 @@ export async function startSimulation(req, res) {
   try {
     // Fast-path check: in-memory variable
     if (activeSessionId) {
-      // Slow-path verification: confirm it's actually still running in Firebase.
-      // Handles the case where Node restarted and lost the variable.
-      const existing = await getSessionState(activeSessionId);
-      if (existing?.status === "running") {
-        return res.status(409).json({
-          error: "A simulation is already active.",
-          active_session_id: activeSessionId,
-        });
-      }
-      // Previous session finished or was deleted — allow a new one
+      // If a simulation was left running (e.g. user refreshed the page),
+      // we just delete it and allow them to start a fresh one for the demo.
+      await deleteSession(activeSessionId);
       activeSessionId = null;
     }
 
