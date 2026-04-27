@@ -28,7 +28,7 @@ export const runRoundSchema = z.object({
 // This is lightweight compared to Python's Pydantic model (the authoritative validator).
 // Its job is: "did Python send something structurally sane?"
 export const pythonRoundResultSchema = z.object({
-  session_id: z.string().uuid(),
+  session_id: z.string(),
   round_number: z.number().int().min(0),
   status: z.enum([
     "running",
@@ -43,11 +43,11 @@ export const pythonRoundResultSchema = z.object({
     time_remaining_minutes: z.number().int().min(0),
     grid_status: z.string(),
     road_status: z.string(),
-  }),
-  agents: z.record(z.any()), // agents schema is Python's domain
+  }).passthrough(),
+  agents: z.record(z.any()),
   shared_history: z.array(z.any()),
   validated_decisions: z.array(z.any()),
   conflicts: z.array(z.any()),
-  final_consensus_plan: z.any().nullable(),
-  system_message: z.string().nullable(),
-});
+  final_consensus_plan: z.any().nullable().optional(),
+  system_message: z.string().nullable().optional(),
+}).passthrough();
