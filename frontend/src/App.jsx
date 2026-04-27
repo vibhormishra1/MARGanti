@@ -52,7 +52,7 @@ export default function App() {
       {/* Body — stacks vertically on mobile, side-by-side on desktop */}
       <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
         {/* Left panel — full width on mobile, 384px on desktop */}
-        <aside className="w-full md:w-96 flex flex-col border-b md:border-b-0 md:border-r border-marg-blue shrink-0 overflow-hidden" style={{ maxHeight: "50vh" }}>
+        <aside className="w-full md:w-96 flex flex-col border-b md:border-b-0 md:border-r border-marg-blue shrink-0 overflow-hidden max-h-[50vh] md:max-h-full">
           <ControlPanel
             sessionId={sessionId}
             setSessionId={setSessionId}
@@ -62,8 +62,9 @@ export default function App() {
         </aside>
 
         {/* Right panel — fills rest */}
-        <main className="flex flex-col flex-1 overflow-hidden" style={{ minHeight: "50vh" }}>
-          <MapView finalPlan={finalPlan} />
+        <main className="flex flex-col flex-1 overflow-hidden min-h-[50vh] md:min-h-full">
+          {/* Pass the history and the status so the map can react in real-time */}
+          <MapView finalPlan={finalPlan} history={history} simStatus={simStatus} />
           <DecisionPanel plan={finalPlan} simStatus={simStatus} />
         </main>
       </div>

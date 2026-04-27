@@ -92,8 +92,10 @@ function AgentMessage({ msg, index }) {
             {showDebug ? "▲ Hide reasoning" : "▼ AI reasoning"}
           </button>
           {showDebug && (
-            <div className="mt-2 p-2 bg-black/50 rounded text-xs text-gray-400 font-mono border border-gray-800 whitespace-pre-wrap">
-              {msg.internal_reasoning}
+            <div className="mt-2 p-2 bg-black/50 rounded text-xs text-gray-400 font-mono border border-gray-800 whitespace-pre-wrap break-all overflow-hidden">
+              {msg.internal_reasoning.includes("API failure") 
+                ? "Connection to upstream cognitive models failed. Re-routing through local fallback heuristics..." 
+                : msg.internal_reasoning}
             </div>
           )}
         </>
