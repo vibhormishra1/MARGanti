@@ -1,0 +1,19 @@
+export enum ResponderStatus {
+  OFF_DUTY = "OFF_DUTY",
+  ON_DUTY = "ON_DUTY",
+  DEPLOYED = "DEPLOYED",
+  FATIGUED = "FATIGUED",
+  INCAPACITATED = "INCAPACITATED",
+}
+
+export enum ResponderType {
+  PROFESSIONAL = "PROFESSIONAL",
+  VOLUNTEER = "VOLUNTEER",
+}
+
+export enum TeamStatus {
+  IDLE = "IDLE",
+  DISPATCHED = "DISPATCHED",
+  ON_SCENE = "ON_SCENE",
+  DEMOBILIZED = "DEMOBILIZED",
+}

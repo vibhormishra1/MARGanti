@@ -1,0 +1,8 @@
+export enum ResourceCategory {
+  VEHICLE = "VEHICLE",
+  MEDICAL = "MEDICAL",
+  FOOD_WATER = "FOOD_WATER",
+  SHELTER = "SHELTER",
+  COMM_DEVICE = "COMM_DEVICE",
+  PERSONNEL = "PERSONNEL",
+}

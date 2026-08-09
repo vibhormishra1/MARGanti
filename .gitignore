@@ -1,35 +1,47 @@
-# Dependencies
+# Dependency directories
 node_modules/
 .pnp
 .pnp.js
 
-# Build outputs
-dist/
+# Next.js build output
+.next/
+out/
 build/
-__pycache__/
-*.pyc
-
-# Environment files — NEVER commit secrets
-.env
-.env.*
-!.env.example
-
-# Firebase service account keys
-*-firebase-adminsdk-*.json
-serviceAccountKey.json
-
-# IDE / OS
-.DS_Store
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Logs
-*.log
-npm-debug.log*
+dist/
+.turbo/
 
 # Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
 venv/
 .venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
 *.egg-info/
+
+# macOS
+.DS_Store
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Secrets — never commit
+serviceAccountKey.json
+*.pem
+*.key
+*.p12

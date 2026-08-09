@@ -1,10 +1,7 @@
 {
-  "database": {
-    "rules": "database.rules.json"
-  },
   "hosting": {
     "target": "marg-anti",
-    "public": "frontend/dist",
+    "public": "apps/web/out",
     "ignore": [
       "firebase.json",
       "**/.*",

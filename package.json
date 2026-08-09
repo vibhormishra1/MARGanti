@@ -1,0 +1,31 @@
+{
+  "name": "marg-v2",
+  "version": "2.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "schema:generate": "turbo run schema:generate",
+    "sdk:generate": "turbo run sdk:generate",
+    "codegen": "turbo run sdk:generate",
+    "clean": "turbo run clean && rimraf node_modules apps/*/node_modules packages/*/node_modules"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "eslint": "^9.0.0",
+    "globals": "^15.0.0",
+    "prettier": "^3.3.0",
+    "prettier-plugin-tailwindcss": "^0.6.0",
+    "rimraf": "^6.0.0",
+    "turbo": "^2.0.0",
+    "typescript": "^5.5.0",
+    "typescript-eslint": "^8.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.1.0"
+}

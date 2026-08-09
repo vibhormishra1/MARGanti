@@ -1,0 +1,17 @@
+node_modules
+.next
+.turbo
+dist
+build
+out
+venv
+.venv
+__pycache__
+*.pyc
+*.pyo
+coverage.xml
+.coverage
+.DS_Store
+.idea
+.vscode
+pnpm-lock.yaml

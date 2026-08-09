@@ -1,0 +1,38 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": [
+    ".env"
+  ],
+  "globalEnv": [
+    "NODE_ENV"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**", "public/dist/**"]
+    },
+    "lint": {
+      "dependsOn": ["^lint"]
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "inputs": ["src/**/*.tsx", "src/**/*.ts", "test/**/*.ts", "tests/**/*.py"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "schema:generate": {
+      "inputs": ["apps/api/src/**/*.py"],
+      "outputs": ["packages/api-sdk/schema/openapi.json"]
+    },
+    "sdk:generate": {
+      "dependsOn": ["schema:generate"],
+      "inputs": ["packages/api-sdk/schema/openapi.json"],
+      "outputs": ["packages/api-sdk/src/generated/**"]
+    },
+    "clean": {
+      "cache": false
+    }
+  }
+}
