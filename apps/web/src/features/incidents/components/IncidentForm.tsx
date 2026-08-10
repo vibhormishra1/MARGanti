@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from "react";
-import { IncidentPriority, IncidentStatus } from "@marg/domain";
+import React, { useState } from "react";
+import { IncidentPriority } from "@marg/domain";
 import { useIncidentStore } from "../store/incident.store";
 import { useReportIncident } from "../api/incident.api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/features/auth";
 
 export function IncidentForm() {
   const [draftId] = useState(() => crypto.randomUUID());
+  const { user } = useAuth();
   const { drafts, saveDraft, deleteDraft } = useIncidentStore();
   const reportMutation = useReportIncident();
   
@@ -32,7 +34,7 @@ export function IncidentForm() {
       priority: currentDraft.priority,
       latitude: 28.6139,
       longitude: 77.2090,
-      reporter_id: "user-123", // From Auth context
+      reporter_id: user?.user_id || "fallback-id",
     };
 
     reportMutation.mutate(payload, {

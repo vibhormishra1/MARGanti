@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import StaticPool
 
 from marg_api.core.dependencies import get_db
+from marg_api.core.security import TokenData, get_current_user
 from marg_api.infrastructure.database.models import Base
 from marg_api.main import app
 
@@ -40,8 +41,11 @@ async def override_get_db() -> AsyncGenerator[AsyncSession]:
             raise
 
 
-app.dependency_overrides[get_db] = override_get_db
+def override_get_current_user():
+    return TokenData(user_id="test-user-123", organization_id="test-org-123", role="admin")
 
+app.dependency_overrides[get_db] = override_get_db
+app.dependency_overrides[get_current_user] = override_get_current_user
 
 @pytest.fixture
 async def async_client() -> AsyncGenerator[AsyncClient]:

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 
 from marg_api.core.dependencies import get_mission_commands, get_mission_queries
+from marg_api.core.security import TokenData, get_current_user
 from marg_api.modules.mission.application.commands import (
     AddDependencyCommand,
     AssignTaskCommand,
@@ -18,26 +19,37 @@ router = APIRouter(prefix="/missions", tags=["missions"])
 async def create_mission(
     cmd: CreateMissionCommand,
     commands: MissionCommands = Depends(get_mission_commands),
+    current_user: TokenData = Depends(get_current_user),
 ):
+    cmd.organization_id = current_user.organization_id
+    cmd.commander_id = current_user.user_id
     return await commands.create_mission(cmd)
 
 
 @router.get("/", response_model=list[Mission])
 async def list_missions(
     incident_id: str | None = Query(None),
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
     queries: MissionQueries = Depends(get_mission_queries),
+    current_user: TokenData = Depends(get_current_user),
 ):
-    return await queries.list_missions(incident_id)
+    missions = await queries.list_missions(incident_id, limit=limit, offset=offset)
+    # Filter by tenant
+    return [m for m in missions if m.organization_id == current_user.organization_id]
 
 
 @router.get("/{mission_id}", response_model=Mission)
 async def get_mission(
     mission_id: str,
     queries: MissionQueries = Depends(get_mission_queries),
+    current_user: TokenData = Depends(get_current_user),
 ):
     mission = await queries.get_mission(mission_id)
     if not mission:
         raise HTTPException(status_code=404, detail="Mission not found")
+    if mission.organization_id != current_user.organization_id:
+        raise HTTPException(status_code=403, detail="Not authorized to access this mission")
     return mission
 
 
@@ -45,7 +57,12 @@ async def get_mission(
 async def publish_mission(
     mission_id: str,
     commands: MissionCommands = Depends(get_mission_commands),
+    queries: MissionQueries = Depends(get_mission_queries),
+    current_user: TokenData = Depends(get_current_user),
 ):
+    mission = await queries.get_mission(mission_id)
+    if not mission or mission.organization_id != current_user.organization_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
     try:
         return await commands.publish_mission(mission_id)
     except ValueError as e:
@@ -56,7 +73,12 @@ async def publish_mission(
 async def complete_mission(
     mission_id: str,
     commands: MissionCommands = Depends(get_mission_commands),
+    queries: MissionQueries = Depends(get_mission_queries),
+    current_user: TokenData = Depends(get_current_user),
 ):
+    mission = await queries.get_mission(mission_id)
+    if not mission or mission.organization_id != current_user.organization_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
     try:
         return await commands.complete_mission(mission_id)
     except ValueError as e:
@@ -68,7 +90,12 @@ async def create_task(
     mission_id: str,
     cmd: CreateTaskCommand,
     commands: MissionCommands = Depends(get_mission_commands),
+    queries: MissionQueries = Depends(get_mission_queries),
+    current_user: TokenData = Depends(get_current_user),
 ):
+    mission = await queries.get_mission(mission_id)
+    if not mission or mission.organization_id != current_user.organization_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
     try:
         return await commands.create_task(mission_id, cmd)
     except ValueError as e:
@@ -81,7 +108,12 @@ async def add_dependency(
     task_id: str,
     cmd: AddDependencyCommand,
     commands: MissionCommands = Depends(get_mission_commands),
+    queries: MissionQueries = Depends(get_mission_queries),
+    current_user: TokenData = Depends(get_current_user),
 ):
+    mission = await queries.get_mission(mission_id)
+    if not mission or mission.organization_id != current_user.organization_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
     try:
         return await commands.add_dependency(mission_id, task_id, cmd)
     except ValueError as e:
@@ -94,7 +126,12 @@ async def assign_task(
     task_id: str,
     cmd: AssignTaskCommand,
     commands: MissionCommands = Depends(get_mission_commands),
+    queries: MissionQueries = Depends(get_mission_queries),
+    current_user: TokenData = Depends(get_current_user),
 ):
+    mission = await queries.get_mission(mission_id)
+    if not mission or mission.organization_id != current_user.organization_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
     try:
         return await commands.assign_task(mission_id, task_id, cmd)
     except ValueError as e:
@@ -106,7 +143,12 @@ async def start_task(
     mission_id: str,
     task_id: str,
     commands: MissionCommands = Depends(get_mission_commands),
+    queries: MissionQueries = Depends(get_mission_queries),
+    current_user: TokenData = Depends(get_current_user),
 ):
+    mission = await queries.get_mission(mission_id)
+    if not mission or mission.organization_id != current_user.organization_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
     try:
         return await commands.start_task(mission_id, task_id)
     except ValueError as e:
@@ -118,7 +160,12 @@ async def complete_task(
     mission_id: str,
     task_id: str,
     commands: MissionCommands = Depends(get_mission_commands),
+    queries: MissionQueries = Depends(get_mission_queries),
+    current_user: TokenData = Depends(get_current_user),
 ):
+    mission = await queries.get_mission(mission_id)
+    if not mission or mission.organization_id != current_user.organization_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
     try:
         return await commands.complete_task(mission_id, task_id)
     except ValueError as e:
@@ -131,7 +178,12 @@ async def add_checklist_item(
     task_id: str,
     description: str = Body(..., embed=True),
     commands: MissionCommands = Depends(get_mission_commands),
+    queries: MissionQueries = Depends(get_mission_queries),
+    current_user: TokenData = Depends(get_current_user),
 ):
+    mission = await queries.get_mission(mission_id)
+    if not mission or mission.organization_id != current_user.organization_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
     try:
         return await commands.add_checklist_item(mission_id, task_id, description)
     except ValueError as e:
@@ -146,7 +198,12 @@ async def update_checklist_item(
     is_completed: bool = Body(..., embed=True),
     responder_id: str = Body(..., embed=True),
     commands: MissionCommands = Depends(get_mission_commands),
+    queries: MissionQueries = Depends(get_mission_queries),
+    current_user: TokenData = Depends(get_current_user),
 ):
+    mission = await queries.get_mission(mission_id)
+    if not mission or mission.organization_id != current_user.organization_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
     try:
         return await commands.update_checklist_item(mission_id, task_id, item_id, is_completed, responder_id)
     except ValueError as e:

@@ -34,11 +34,11 @@ class MissionRepository(ABC):
         pass
 
     @abstractmethod
-    async def list_all(self) -> list[Mission]:
+    async def list_all(self, limit: int = 50, offset: int = 0) -> list[Mission]:
         pass
 
     @abstractmethod
-    async def get_by_incident_id(self, incident_id: str) -> list[Mission]:
+    async def get_by_incident_id(self, incident_id: str, limit: int = 50, offset: int = 0) -> list[Mission]:
         pass
 
 
@@ -87,6 +87,7 @@ class SQLAlchemyMissionRepository(MissionRepository):
 
         return Mission(
             id=model.id,
+            organization_id=model.organization_id,
             title=model.title,
             incident_id=model.incident_id,
             commander_id=model.commander_id,
@@ -140,6 +141,7 @@ class SQLAlchemyMissionRepository(MissionRepository):
 
         return {
             "id": mission.id,
+            "organization_id": mission.organization_id,
             "title": mission.title,
             "incident_id": mission.incident_id,
             "commander_id": mission.commander_id,
@@ -170,14 +172,14 @@ class SQLAlchemyMissionRepository(MissionRepository):
             return None
         return self._to_domain(model)
 
-    async def list_all(self) -> list[Mission]:
-        stmt = select(MissionModel)
+    async def list_all(self, limit: int = 50, offset: int = 0) -> list[Mission]:
+        stmt = select(MissionModel).offset(offset).limit(limit)
         result = await self.session.execute(stmt)
         models = result.scalars().all()
         return [self._to_domain(m) for m in models]
 
-    async def get_by_incident_id(self, incident_id: str) -> list[Mission]:
-        stmt = select(MissionModel).where(MissionModel.incident_id == incident_id)
+    async def get_by_incident_id(self, incident_id: str, limit: int = 50, offset: int = 0) -> list[Mission]:
+        stmt = select(MissionModel).where(MissionModel.incident_id == incident_id).offset(offset).limit(limit)
         result = await self.session.execute(stmt)
         models = result.scalars().all()
         return [self._to_domain(m) for m in models]

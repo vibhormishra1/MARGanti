@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useRef } from "react";
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from "react";
 import { SyncOperation, SyncConflict } from "@marg/domain";
 import { MockSyncAdapter } from "@marg/cloud-adapter";
 import { SyncQueueLocalRepository, SyncConflictLocalRepository } from "@marg/storage-local";
@@ -41,22 +41,14 @@ export const SyncProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   // Background worker loop
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isOnline) {
-      interval = setInterval(() => {
-        triggerSync();
-      }, 5000); // Poll every 5s if online
-    }
-    return () => clearInterval(interval);
-  }, [isOnline]);
+
 
   const setOnlineStatus = (status: boolean) => {
     setIsOnline(status);
     if (status) triggerSync(); // Immediate sync on reconnect
   };
 
-  const triggerSync = async () => {
+  const triggerSync = useCallback(async () => {
     if (!isOnline || isSyncing) return;
     setIsSyncing(true);
     try {
@@ -68,7 +60,17 @@ export const SyncProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setIsSyncing(false);
     }
-  };
+  }, [isOnline, isSyncing]);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isOnline) {
+      interval = setInterval(() => {
+        triggerSync();
+      }, 5000); // Poll every 5s if online
+    }
+    return () => clearInterval(interval);
+  }, [isOnline, triggerSync]);
 
   const enqueueMutation = async (op: SyncOperation) => {
     await syncAdapter.enqueueMutation(op);

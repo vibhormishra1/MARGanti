@@ -37,6 +37,7 @@ class TimelineEvent(BaseModel):
 
 class Incident(BaseModel):
     id: str
+    organization_id: str
     title: str
     description: str
     location: GeoLocation

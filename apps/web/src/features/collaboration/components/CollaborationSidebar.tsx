@@ -10,12 +10,7 @@ interface CollaborationSidebarProps {
 export const CollaborationSidebar: React.FC<CollaborationSidebarProps> = ({ contextId }) => {
   const [isOpen, setIsOpen] = useState(false);
 
-  // Mock Presence Data
-  const activeOperators = [
-    { id: "user-1", name: "Commander Sarah", status: "ONLINE", role: "Incident Commander" },
-    { id: "user-2", name: "Logistics Mike", status: "AWAY", role: "Logistics Officer" },
-    { id: "user-3", name: "Op Center", status: "ONLINE", role: "HQ" }
-  ];
+  const activeOperators: any[] = [];
 
   if (!isOpen) {
     return (

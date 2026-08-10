@@ -33,11 +33,10 @@ async def get_db_session() -> AsyncGenerator[AsyncSession]:
             raise
 
 
-async def check_db_health() -> bool:
+async def check_db_health(session: AsyncSession) -> bool:
     """Return True if the database is reachable."""
     try:
-        async with async_session_factory() as session:
-            await session.execute(text("SELECT 1"))
+        await session.execute(text("SELECT 1"))
         return True
     except Exception:
         return False

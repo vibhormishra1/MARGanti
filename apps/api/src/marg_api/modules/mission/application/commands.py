@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 
 from pydantic import BaseModel
 
+from marg_api.modules.audit.application.services import AuditService
 from marg_api.modules.mission.domain.models import (
     ChecklistItem,
     Mission,
@@ -23,6 +24,7 @@ class CreateMissionCommand(BaseModel):
     priority: Priority
     objective_description: str
     success_criteria: list[str]
+    organization_id: str | None = None
 
 
 class CreateTaskCommand(BaseModel):
@@ -43,13 +45,15 @@ class AddDependencyCommand(BaseModel):
 
 
 class MissionCommands:
-    def __init__(self, repo: MissionRepository):
+    def __init__(self, repo: MissionRepository, audit_service: AuditService):
         self.repo = repo
+        self.audit_service = audit_service
 
     async def create_mission(self, cmd: CreateMissionCommand) -> Mission:
         now = datetime.now(UTC)
         mission = Mission(
             id=f"mis-{uuid.uuid4().hex[:8]}",
+            organization_id=cmd.organization_id,
             title=cmd.title,
             incident_id=cmd.incident_id,
             commander_id=cmd.commander_id,
@@ -63,6 +67,13 @@ class MissionCommands:
             updated_at=now,
         )
         await self.repo.save(mission)
+        await self.audit_service.log_event(
+            actor_id=cmd.commander_id,
+            action="MISSION_CREATED",
+            resource_type="MISSION",
+            resource_id=mission.id,
+            metadata_payload={"priority": mission.priority.value, "status": mission.status.value}
+        )
         return mission
 
     async def publish_mission(self, mission_id: str) -> Mission:
@@ -77,6 +88,13 @@ class MissionCommands:
         mission.status = MissionStatus.ACTIVE
         mission.updated_at = datetime.now(UTC)
         await self.repo.save(mission)
+        await self.audit_service.log_event(
+            actor_id=mission.commander_id,
+            action="MISSION_PUBLISHED",
+            resource_type="MISSION",
+            resource_id=mission.id,
+            metadata_payload={"new_status": mission.status.value}
+        )
         return mission
 
     async def complete_mission(self, mission_id: str) -> Mission:

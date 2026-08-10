@@ -25,7 +25,7 @@ export function ResponderCard({ responder }: ResponderCardProps) {
         <div className="flex justify-between items-start">
           <CardTitle className="text-lg font-semibold truncate flex items-center gap-2">
             <User className="w-4 h-4" />
-            {responder.contactInfo.email.split("@")[0]} {/* Mock name */}
+            {responder.contactInfo.email.split("@")[0]}
           </CardTitle>
           <Badge className={getStatusColor(responder.status)}>
             {responder.status}

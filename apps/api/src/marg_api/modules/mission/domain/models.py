@@ -60,6 +60,7 @@ class TaskDependency(BaseModel):
 
 class Mission(BaseModel):
     id: str
+    organization_id: str
     title: str
     incident_id: str
     commander_id: str

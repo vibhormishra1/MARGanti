@@ -6,6 +6,26 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from marg_api.infrastructure.database.engine import get_db_session
+from marg_api.modules.admin.application.services import AdminService
+from marg_api.modules.admin.infrastructure.repositories import (
+    AdminRepository,
+    SQLAlchemyAdminRepository,
+)
+from marg_api.modules.analytics.application.services import AnalyticsService
+from marg_api.modules.analytics.infrastructure.repositories import (
+    AnalyticsRepository,
+    SQLAlchemyAnalyticsRepository,
+)
+from marg_api.modules.audit.application.services import AuditService
+from marg_api.modules.audit.infrastructure.repositories import (
+    AuditRepository,
+    SQLAlchemyAuditRepository,
+)
+from marg_api.modules.auth.application.services import AuthService
+from marg_api.modules.auth.infrastructure.repositories import (
+    AuthRepository,
+    SQLAlchemyAuthRepository,
+)
 from marg_api.modules.incident.application.commands import IncidentCommands
 from marg_api.modules.incident.application.queries import IncidentQueries
 from marg_api.modules.incident.infrastructure.repositories import (
@@ -17,6 +37,11 @@ from marg_api.modules.mission.application.queries import MissionQueries
 from marg_api.modules.mission.infrastructure.repositories import (
     MissionRepository,
     SQLAlchemyMissionRepository,
+)
+from marg_api.modules.reporting.application.services import ReportingService
+from marg_api.modules.reporting.infrastructure.repositories import (
+    ReportingRepository,
+    SQLAlchemyReportingRepository,
 )
 from marg_api.modules.resource.application.commands import ResourceCommands
 from marg_api.modules.resource.application.queries import ResourceQueries
@@ -34,11 +59,6 @@ from marg_api.modules.workforce.infrastructure.repositories import (
     SQLAlchemyTeamRepository,
     TeamRepository,
 )
-from marg_api.modules.analytics.infrastructure.repositories import (
-    AnalyticsRepository,
-    SQLAlchemyAnalyticsRepository,
-)
-from marg_api.modules.analytics.application.services import AnalyticsService
 
 
 # ── Database Session ───────────────────────────────────────────────
@@ -90,11 +110,42 @@ def get_analytics_repository(
     return SQLAlchemyAnalyticsRepository(db)
 
 
+def get_audit_repository(
+    db: AsyncSession = Depends(get_db),
+) -> AuditRepository:
+    return SQLAlchemyAuditRepository(db)
+
+
+def get_reporting_repository(
+    db: AsyncSession = Depends(get_db),
+) -> ReportingRepository:
+    return SQLAlchemyReportingRepository(db)
+
+
+def get_auth_repository(
+    db: AsyncSession = Depends(get_db),
+) -> AuthRepository:
+    return SQLAlchemyAuthRepository(db)
+
+
+def get_admin_repository(
+    db: AsyncSession = Depends(get_db),
+) -> AdminRepository:
+    return SQLAlchemyAdminRepository(db)
+
+
 # ── Application Services (Commands & Queries) ─────────────────────
+def get_audit_service(
+    repo: AuditRepository = Depends(get_audit_repository),
+) -> AuditService:
+    return AuditService(repo)
+
+
 def get_incident_commands(
     repo: IncidentRepository = Depends(get_incident_repository),
+    audit_service: AuditService = Depends(get_audit_service),
 ) -> IncidentCommands:
-    return IncidentCommands(repo)
+    return IncidentCommands(repo, audit_service)
 
 
 def get_incident_queries(
@@ -105,8 +156,9 @@ def get_incident_queries(
 
 def get_mission_commands(
     repo: MissionRepository = Depends(get_mission_repository),
+    audit_service: AuditService = Depends(get_audit_service),
 ) -> MissionCommands:
-    return MissionCommands(repo)
+    return MissionCommands(repo, audit_service)
 
 
 def get_mission_queries(
@@ -147,3 +199,23 @@ def get_analytics_service(
     repo: AnalyticsRepository = Depends(get_analytics_repository),
 ) -> AnalyticsService:
     return AnalyticsService(repo)
+
+
+
+def get_reporting_service(
+    repo: ReportingRepository = Depends(get_reporting_repository),
+) -> ReportingService:
+    return ReportingService(repo)
+
+
+def get_auth_service(
+    repo: AuthRepository = Depends(get_auth_repository),
+) -> AuthService:
+    return AuthService(repo)
+
+
+def get_admin_service(
+    repo: AdminRepository = Depends(get_admin_repository),
+    audit_service: AuditService = Depends(get_audit_service),
+) -> AdminService:
+    return AdminService(repo, audit_service)

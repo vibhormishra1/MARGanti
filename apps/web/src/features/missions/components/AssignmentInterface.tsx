@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useAssignTask } from "../api/mission.api";
 import { useResponders } from "../../workforce/api/workforce.api";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/features/auth";
 
 interface AssignmentInterfaceProps {
   missionId: string;
@@ -18,8 +19,9 @@ export function AssignmentInterface({
   currentTeamId,
   onSuccess,
 }: AssignmentInterfaceProps) {
+  const { user } = useAuth();
   const assignMutation = useAssignTask(missionId);
-  const { data: responders, isLoading } = useResponders("org-123"); // Mock org ID
+  const { data: responders, isLoading } = useResponders(user?.organization_id || "");
 
   const [selectedResponder, setSelectedResponder] = useState(currentResponderId || "");
   const [selectedTeam, setSelectedTeam] = useState(currentTeamId || "");

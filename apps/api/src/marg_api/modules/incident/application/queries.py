@@ -15,8 +15,9 @@ class IncidentQueries:
         priority: str | None = None,
         limit: int = 50,
         offset: int = 0,
+        organization_id: str | None = None,
     ) -> list[Incident]:
-        return await self.repository.search(status, priority, limit, offset)
+        return await self.repository.search(status, priority, limit, offset, organization_id)
 
-    async def get_nearby_incidents(self, lat: float, lng: float, radius_km: float) -> list[Incident]:
-        return await self.repository.find_by_radius(lat, lng, radius_km)
+    async def get_nearby_incidents(self, lat: float, lng: float, radius_km: float, organization_id: str | None = None) -> list[Incident]:
+        return await self.repository.find_by_radius(lat, lng, radius_km, organization_id)

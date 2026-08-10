@@ -66,7 +66,7 @@ export function ConflictResolutionUI() {
                 </div>
               </div>
 
-              {/* Manual Merge (Mocked for now) */}
+              {/* Manual Merge */ }
               <div className="p-4 border-t border-slate-800 bg-slate-900">
                 <Button 
                   className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold border-none"

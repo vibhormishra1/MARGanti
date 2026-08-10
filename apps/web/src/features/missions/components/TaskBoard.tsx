@@ -4,12 +4,14 @@ import { useStartTask, useCompleteTask, useUpdateChecklistItem, useAddChecklistI
 import { AssignmentInterface } from "./AssignmentInterface";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/features/auth";
 
 interface TaskBoardProps {
   mission: Mission;
 }
 
 export function TaskBoard({ mission }: TaskBoardProps) {
+  const { user } = useAuth();
   const startTaskMutation = useStartTask(mission.id);
   const completeTaskMutation = useCompleteTask(mission.id);
   const addChecklistItemMutation = useAddChecklistItem(mission.id);
@@ -45,7 +47,7 @@ export function TaskBoard({ mission }: TaskBoardProps) {
       taskId,
       itemId,
       isCompleted: !currentStatus,
-      responderId: "user-123",
+      responderId: user?.user_id || "system",
     });
   };
 

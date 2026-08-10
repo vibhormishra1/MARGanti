@@ -3,6 +3,7 @@ import { useCreateMission } from "../api/mission.api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/features/auth";
 
 interface MissionCreationProps {
   incidentId: string;
@@ -10,6 +11,7 @@ interface MissionCreationProps {
 }
 
 export function MissionCreation({ incidentId, onSuccess }: MissionCreationProps) {
+  const { user } = useAuth();
   const createMutation = useCreateMission();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -40,7 +42,7 @@ export function MissionCreation({ incidentId, onSuccess }: MissionCreationProps)
       {
         title,
         incidentId,
-        commanderId: "user-123", // From Context
+        commanderId: user?.user_id || "unknown-user",
         priority,
         objective: {
           description,

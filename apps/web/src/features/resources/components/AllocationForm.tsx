@@ -4,6 +4,7 @@ import { useAllocateResource } from "../api/resource.api";
 import { useResourceStore } from "../store/resource.store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/features/auth";
 
 interface AllocationFormProps {
   item: InventoryItem;
@@ -13,6 +14,7 @@ interface AllocationFormProps {
 
 export function AllocationForm({ item, incidentId, onSuccess }: AllocationFormProps) {
   const [amount, setAmount] = useState<number>(1);
+  const { user } = useAuth();
   const allocateMutation = useAllocateResource();
   const saveOffline = useResourceStore(s => s.saveOfflineAllocation);
 
@@ -22,7 +24,7 @@ export function AllocationForm({ item, incidentId, onSuccess }: AllocationFormPr
 
     const payload = {
       incident_id: incidentId,
-      assigned_to: "user-123", // From auth
+      assigned_to: user?.user_id || "fallback-id",
       allocations: [
         {
           inventory_item_id: item.id,
@@ -40,7 +42,7 @@ export function AllocationForm({ item, incidentId, onSuccess }: AllocationFormPr
           incidentId,
           inventoryItemId: item.id,
           quantity: { amount, unit: item.availableQuantity.unit } as any,
-          assignedTo: "user-123",
+          assignedTo: user?.user_id || "fallback-id",
           timestamp: Date.now()
         });
         onSuccess?.(); // Optimistically close

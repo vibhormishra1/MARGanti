@@ -3,30 +3,11 @@
 import React, { useEffect, useState } from "react";
 import { useMapEngine } from "../../context/MapContext";
 
-// Mock live resource tracking
-const MOCK_RESOURCES = [
-  { id: "res-1", name: "Alpha Squad", type: "TEAM", lng: -122.4194, lat: 37.7749 },
-  { id: "res-2", name: "Medevac Heli", type: "VEHICLE", lng: -122.4094, lat: 37.7849 },
-  { id: "res-3", name: "Engine 4", type: "VEHICLE", lng: -122.4294, lat: 37.7649 },
-];
+const MOCK_RESOURCES: any[] = [];
 
 export const ResourceLayer: React.FC = () => {
   const { engine } = useMapEngine();
   const [resources, setResources] = useState(MOCK_RESOURCES);
-
-  // Simulate live movement
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setResources((prev) =>
-        prev.map((res) => ({
-          ...res,
-          lng: res.lng + (Math.random() - 0.5) * 0.001,
-          lat: res.lat + (Math.random() - 0.5) * 0.001,
-        }))
-      );
-    }, 2000);
-    return () => clearInterval(interval);
-  }, []);
 
   useEffect(() => {
     if (!engine || resources.length === 0) return;
