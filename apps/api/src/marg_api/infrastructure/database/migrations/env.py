@@ -7,10 +7,11 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from marg_api.core.config import settings
 from marg_api.infrastructure.database.models import Base
 
+from marg_api.core.logging import configure_logging
+
 config = context.config
 
-if config.config_file_name:
-    fileConfig(config.config_file_name)
+configure_logging()
 
 target_metadata = Base.metadata
 

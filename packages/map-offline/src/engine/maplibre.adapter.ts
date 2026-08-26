@@ -9,9 +9,7 @@ export class MapLibreAdapter implements IMapEngine {
   private map: maplibregl.Map | null = null;
 
   async initialize(options: MapOptions): Promise<void> {
-    if (!(maplibregl as any).supported()) {
-      throw new EngineInitError("WebGL is not supported in this environment");
-    }
+    // WebGL support check removed as it can cause import issues in Next.js SSR or turbopack
 
     return new Promise((resolve, reject) => {
       try {

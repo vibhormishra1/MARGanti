@@ -21,9 +21,15 @@ configure_logging()
 logger = structlog.get_logger()
 
 
+from marg_api.infrastructure.database.models import Base
+from marg_api.infrastructure.database.engine import engine
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("startup", project=settings.PROJECT_NAME, version=settings.VERSION)
+    if settings.ENVIRONMENT == "development":
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
     yield
     await dispose_engine()
     logger.info("shutdown")
@@ -54,7 +60,7 @@ def create_app() -> FastAPI:
     app.add_exception_handler(Exception, global_exception_handler)
 
     # Router Registration
-    app.include_router(system.router, prefix=settings.API_V1_STR)
+    app.include_router(system.router, prefix="/api")
     app.include_router(domain_routes, prefix=settings.API_V1_STR)
 
     return app
