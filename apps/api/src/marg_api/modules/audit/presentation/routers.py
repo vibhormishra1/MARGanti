@@ -25,8 +25,9 @@ async def get_audit_events(
         resource_id=resource_id,
         actor_id=actor_id,
         limit=limit,
-        offset=offset
+        offset=offset,
     )
+
 
 @router.post("/events/sync", response_model=list[AuditEvent])
 async def sync_offline_audit_events(

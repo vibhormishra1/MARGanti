@@ -15,7 +15,7 @@ class AuditService:
         result: str = "SUCCESS",
         actor_role: str | None = None,
         organization_id: str | None = None,
-        metadata_payload: dict | None = None
+        metadata_payload: dict | None = None,
     ) -> AuditEvent:
         event = AuditEvent(
             actor_id=actor_id,
@@ -36,12 +36,8 @@ class AuditService:
         resource_id: str | None = None,
         actor_id: str | None = None,
         limit: int = 100,
-        offset: int = 0
+        offset: int = 0,
     ) -> list[AuditEvent]:
         return await self.audit_repo.query_events(
-            organization_id=organization_id,
-            resource_id=resource_id,
-            actor_id=actor_id,
-            limit=limit,
-            offset=offset
+            organization_id=organization_id, resource_id=resource_id, actor_id=actor_id, limit=limit, offset=offset
         )

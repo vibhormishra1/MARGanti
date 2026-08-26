@@ -23,7 +23,7 @@ class AuthService:
             email=user_in.email,
             hashed_password=hashed_password,
             organization_id=user_in.organization_id,
-            role=user_in.role
+            role=user_in.role,
         )
         created = await self.repo.create_user(db_user)
         return UserResponse(
@@ -31,7 +31,7 @@ class AuthService:
             email=created.email,
             organization_id=created.organization_id,
             role=created.role,
-            is_active=created.is_active
+            is_active=created.is_active,
         )
 
     async def authenticate_user(self, email: str, password: str) -> Token:
@@ -42,8 +42,6 @@ class AuthService:
                 detail="Incorrect email or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        
-        access_token = create_access_token(
-            data={"sub": user.id, "org_id": user.organization_id, "role": user.role}
-        )
+
+        access_token = create_access_token(data={"sub": user.id, "org_id": user.organization_id, "role": user.role})
         return Token(access_token=access_token, token_type="bearer")

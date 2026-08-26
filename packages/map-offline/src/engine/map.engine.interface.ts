@@ -9,8 +9,8 @@ export interface IMapEngine {
   setZoom(zoom: number): void;
   getCenter(): LngLat;
   getZoom(): number;
-  addSource(id: string, source: any): void;
-  addLayer(layer: any): void;
+  addSource(id: string, source: unknown): void;
+  addLayer(layer: unknown): void;
   removeLayer(id: string): void;
   removeSource(id: string): void;
 }

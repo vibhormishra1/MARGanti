@@ -1,10 +1,9 @@
-from pathlib import Path
 import sys
+from pathlib import Path
 from typing import Any
 
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
 
 _INSECURE_JWT_DEFAULT = "super-secret-key-for-local-dev-only"
 

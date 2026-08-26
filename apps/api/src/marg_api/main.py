@@ -14,15 +14,13 @@ from marg_api.core.exceptions import (
 )
 from marg_api.core.logging import configure_logging
 from marg_api.core.middleware import RequestLoggingMiddleware
-from marg_api.infrastructure.database.engine import dispose_engine
+from marg_api.infrastructure.database.engine import dispose_engine, engine
+from marg_api.infrastructure.database.models import Base
 
 # Configure JSON logging immediately
 configure_logging()
 logger = structlog.get_logger()
 
-
-from marg_api.infrastructure.database.models import Base
-from marg_api.infrastructure.database.engine import engine
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

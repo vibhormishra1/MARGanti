@@ -8,7 +8,7 @@ export interface MapClickEvent {
 export type MapEventHandler<T> = (event: T) => void;
 
 export class MapEventEmitter {
-  private listeners: Map<string, Set<MapEventHandler<any>>> = new Map();
+  private listeners: Map<string, Set<MapEventHandler<unknown>>> = new Map();
 
   public on<T>(event: string, handler: MapEventHandler<T>): void {
     if (!this.listeners.has(event)) {

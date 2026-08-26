@@ -18,9 +18,11 @@ async def health_check(db: AsyncSession = Depends(get_db)) -> dict[str, str]:
         "database": "connected" if db_ok else "disconnected",
     }
 
+
 @router.get("/liveness", tags=["System"])
 async def liveness() -> dict[str, str]:
     return {"status": "ok"}
+
 
 @router.get("/readiness", tags=["System"])
 async def readiness(response: Response, db: AsyncSession = Depends(get_db)) -> dict[str, str]:
@@ -28,8 +30,9 @@ async def readiness(response: Response, db: AsyncSession = Depends(get_db)) -> d
     if not db_ok:
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
         return {"status": "unavailable", "reason": "database_disconnected"}
-    
+
     return {"status": "ready"}
+
 
 @router.get("/metrics", tags=["System"])
 async def metrics() -> Response:

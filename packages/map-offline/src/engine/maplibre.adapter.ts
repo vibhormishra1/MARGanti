@@ -15,7 +15,7 @@ export class MapLibreAdapter implements IMapEngine {
       try {
         this.map = new maplibregl.Map({
           container: options.container,
-          style: options.style as any,
+          style: options.style as maplibregl.StyleSpecification,
           center: options.center ?? [0, 0],
           zoom: options.zoom ?? 1,
         });
@@ -28,8 +28,8 @@ export class MapLibreAdapter implements IMapEngine {
         this.map.once("error", (e) => {
           reject(new EngineInitError(e.error?.message || "Map failed to load"));
         });
-      } catch (err: any) {
-        reject(new EngineInitError(err.message));
+      } catch (err: unknown) {
+        reject(new EngineInitError(err instanceof Error ? err.message : String(err)));
       }
     });
   }
@@ -74,11 +74,11 @@ export class MapLibreAdapter implements IMapEngine {
     return this.map?.getZoom() ?? 0;
   }
 
-  addSource(id: string, source: any): void {
+  addSource(id: string, source: unknown): void {
     this.map?.addSource(id, source as maplibregl.SourceSpecification);
   }
 
-  addLayer(layer: any): void {
+  addLayer(layer: unknown): void {
     this.map?.addLayer(layer as maplibregl.LayerSpecification);
   }
 

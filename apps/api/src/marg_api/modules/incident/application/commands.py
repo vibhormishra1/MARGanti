@@ -72,13 +72,13 @@ class IncidentCommands:
         )
 
         await self.repository.save(incident)
-        
+
         await self.audit_service.log_event(
             actor_id=command.reporter_id,
             action="INCIDENT_REPORTED",
             resource_type="INCIDENT",
             resource_id=incident.id,
-            metadata_payload={"priority": command.priority.value, "status": incident.status.value}
+            metadata_payload={"priority": command.priority.value, "status": incident.status.value},
         )
         return incident
 
@@ -86,7 +86,7 @@ class IncidentCommands:
         incident = await self.repository.get_by_id(command.incident_id)
         if not incident:
             raise ValueError(f"Incident {command.incident_id} not found")
-            
+
         if incident.organization_id != command.organization_id:
             raise ValueError("Not authorized to modify this incident")
 
@@ -107,12 +107,16 @@ class IncidentCommands:
         )
 
         await self.repository.save(incident)
-        
+
         await self.audit_service.log_event(
             actor_id=command.actor_id,
             action="INCIDENT_STATUS_CHANGED",
             resource_type="INCIDENT",
             resource_id=incident.id,
-            metadata_payload={"old_status": old_status.value, "new_status": command.new_status.value, "reason": command.reason}
+            metadata_payload={
+                "old_status": old_status.value,
+                "new_status": command.new_status.value,
+                "reason": command.reason,
+            },
         )
         return incident

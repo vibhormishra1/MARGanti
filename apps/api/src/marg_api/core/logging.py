@@ -6,6 +6,7 @@ import structlog
 
 def configure_logging() -> None:
     from marg_api.core.config import settings
+
     log_level = getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO)
     logging.basicConfig(format="%(message)s", stream=sys.stdout, level=log_level)
     structlog.configure(

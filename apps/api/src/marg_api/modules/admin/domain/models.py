@@ -11,12 +11,15 @@ class SystemConfig(BaseModel):
     updated_at: datetime
     updated_by: str
 
+
 class SystemConfigUpdate(BaseModel):
     value: dict[str, Any]
+
 
 class UserUpdate(BaseModel):
     role: str | None = None
     is_active: bool | None = None
+
 
 class OrganizationUpdate(BaseModel):
     name: str | None = None

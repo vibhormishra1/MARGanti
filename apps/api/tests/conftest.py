@@ -44,8 +44,10 @@ async def override_get_db() -> AsyncGenerator[AsyncSession]:
 def override_get_current_user():
     return TokenData(user_id="test-user-123", organization_id="test-org-123", role="admin")
 
+
 app.dependency_overrides[get_db] = override_get_db
 app.dependency_overrides[get_current_user] = override_get_current_user
+
 
 @pytest.fixture
 async def async_client() -> AsyncGenerator[AsyncClient]:

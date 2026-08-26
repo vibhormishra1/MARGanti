@@ -14,13 +14,10 @@ async def test_get_audit_events(async_client: AsyncClient):
 
 async def test_generate_incident_report(async_client: AsyncClient):
     """Test generating an incident report."""
-    payload = {
-        "report_type": "INCIDENT_SUMMARY",
-        "status_filter": ["REPORTED", "IN_PROGRESS", "RESOLVED"]
-    }
+    payload = {"report_type": "INCIDENT_SUMMARY", "status_filter": ["REPORTED", "IN_PROGRESS", "RESOLVED"]}
     response = await async_client.post("/api/reports/generate", json=payload)
     assert response.status_code == 200
-    
+
     data = response.json()
     assert data["report_type"] == "INCIDENT_SUMMARY"
     assert "sections" in data

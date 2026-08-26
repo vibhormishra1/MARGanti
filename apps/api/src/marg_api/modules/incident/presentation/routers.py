@@ -47,7 +47,7 @@ async def get_incident(
     incident = await queries.get_incident(incident_id)
     if not incident:
         raise HTTPException(status_code=404, detail="Incident not found")
-    
+
     if incident.organization_id != current_user.organization_id:
         raise HTTPException(status_code=403, detail="Not authorized to access this incident")
 

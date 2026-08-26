@@ -24,8 +24,8 @@ export class TileManager {
       }
       
       return response;
-    } catch (error: any) {
-      throw new TileLoadError(error.message);
+    } catch (error: unknown) {
+      throw new TileLoadError(error instanceof Error ? error.message : String(error));
     }
   }
 }

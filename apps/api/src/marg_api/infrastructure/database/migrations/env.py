@@ -1,13 +1,11 @@
 import asyncio
-from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from marg_api.core.config import settings
-from marg_api.infrastructure.database.models import Base
-
 from marg_api.core.logging import configure_logging
+from marg_api.infrastructure.database.models import Base
 
 config = context.config
 

@@ -45,22 +45,21 @@ class SQLAlchemyAdminRepository(AdminRepository):
             organization_id=model.organization_id,
             value=model.value,
             updated_at=model.updated_at,
-            updated_by=model.updated_by
+            updated_by=model.updated_by,
         )
-        
+
     def _to_user_response(self, model: UserModel) -> UserResponse:
         return UserResponse(
             id=model.id,
             email=model.email,
             organization_id=model.organization_id,
             role=model.role,
-            is_active=model.is_active
+            is_active=model.is_active,
         )
 
     async def get_config(self, key: str, organization_id: str) -> SystemConfig | None:
         stmt = select(SystemConfigModel).where(
-            SystemConfigModel.key == key,
-            SystemConfigModel.organization_id == organization_id
+            SystemConfigModel.key == key, SystemConfigModel.organization_id == organization_id
         )
         result = await self.session.execute(stmt)
         model = result.scalar_one_or_none()
@@ -68,12 +67,11 @@ class SQLAlchemyAdminRepository(AdminRepository):
 
     async def save_config(self, config: SystemConfig) -> None:
         stmt = select(SystemConfigModel).where(
-            SystemConfigModel.key == config.key,
-            SystemConfigModel.organization_id == config.organization_id
+            SystemConfigModel.key == config.key, SystemConfigModel.organization_id == config.organization_id
         )
         result = await self.session.execute(stmt)
         model = result.scalar_one_or_none()
-        
+
         if model:
             model.value = config.value
             model.updated_at = config.updated_at
@@ -84,7 +82,7 @@ class SQLAlchemyAdminRepository(AdminRepository):
                 organization_id=config.organization_id,
                 value=config.value,
                 updated_at=config.updated_at,
-                updated_by=config.updated_by
+                updated_by=config.updated_by,
             )
             self.session.add(model)
         await self.session.flush()
@@ -101,12 +99,12 @@ class SQLAlchemyAdminRepository(AdminRepository):
         model = await self.session.get(UserModel, user_id)
         if not model:
             return None
-        
+
         if data.role is not None:
             model.role = data.role
         if data.is_active is not None:
             model.is_active = data.is_active
-            
+
         await self.session.flush()
         return self._to_user_response(model)
 
@@ -114,25 +112,17 @@ class SQLAlchemyAdminRepository(AdminRepository):
         model = await self.session.get(OrganizationModel, organization_id)
         if not model:
             return None
-        return {
-            "id": model.id,
-            "name": model.name,
-            "departments": model.departments
-        }
-        
+        return {"id": model.id, "name": model.name, "departments": model.departments}
+
     async def update_organization(self, organization_id: str, data: OrganizationUpdate) -> dict[str, Any] | None:
         model = await self.session.get(OrganizationModel, organization_id)
         if not model:
             return None
-            
+
         if data.name is not None:
             model.name = data.name
         if data.departments is not None:
             model.departments = data.departments
-            
+
         await self.session.flush()
-        return {
-            "id": model.id,
-            "name": model.name,
-            "departments": model.departments
-        }
+        return {"id": model.id, "name": model.name, "departments": model.departments}

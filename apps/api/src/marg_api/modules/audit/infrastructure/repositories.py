@@ -14,11 +14,7 @@ class AuditRepository(ABC):
 
     @abstractmethod
     async def query_events(
-        self,
-        resource_id: str | None = None,
-        actor_id: str | None = None,
-        limit: int = 100,
-        offset: int = 0
+        self, resource_id: str | None = None, actor_id: str | None = None, limit: int = 100, offset: int = 0
     ) -> list[AuditEvent]:
         pass
 
@@ -49,7 +45,7 @@ class SQLAlchemyAuditRepository(AuditRepository):
         resource_id: str | None = None,
         actor_id: str | None = None,
         limit: int = 100,
-        offset: int = 0
+        offset: int = 0,
     ) -> list[AuditEvent]:
         stmt = select(AuditRecordModel).order_by(desc(AuditRecordModel.timestamp))
         if organization_id:
@@ -58,10 +54,10 @@ class SQLAlchemyAuditRepository(AuditRepository):
             stmt = stmt.where(AuditRecordModel.resource_id == resource_id)
         if actor_id:
             stmt = stmt.where(AuditRecordModel.actor_id == actor_id)
-            
+
         stmt = stmt.limit(limit).offset(offset)
         result = await self.session.execute(stmt)
-        
+
         events = []
         for row in result.scalars():
             events.append(

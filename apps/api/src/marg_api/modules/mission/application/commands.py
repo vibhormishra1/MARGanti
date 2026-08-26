@@ -72,7 +72,7 @@ class MissionCommands:
             action="MISSION_CREATED",
             resource_type="MISSION",
             resource_id=mission.id,
-            metadata_payload={"priority": mission.priority.value, "status": mission.status.value}
+            metadata_payload={"priority": mission.priority.value, "status": mission.status.value},
         )
         return mission
 
@@ -93,7 +93,7 @@ class MissionCommands:
             action="MISSION_PUBLISHED",
             resource_type="MISSION",
             resource_id=mission.id,
-            metadata_payload={"new_status": mission.status.value}
+            metadata_payload={"new_status": mission.status.value},
         )
         return mission
 

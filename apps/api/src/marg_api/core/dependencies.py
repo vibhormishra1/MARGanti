@@ -201,7 +201,6 @@ def get_analytics_service(
     return AnalyticsService(repo)
 
 
-
 def get_reporting_service(
     repo: ReportingRepository = Depends(get_reporting_repository),
 ) -> ReportingService:

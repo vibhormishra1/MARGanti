@@ -29,7 +29,9 @@ class IncidentRepository(ABC):
         pass
 
     @abstractmethod
-    async def find_by_radius(self, lat: float, lng: float, radius_km: float, organization_id: str | None = None) -> list[Incident]:
+    async def find_by_radius(
+        self, lat: float, lng: float, radius_km: float, organization_id: str | None = None
+    ) -> list[Incident]:
         pass
 
 
@@ -118,25 +120,27 @@ class SQLAlchemyIncidentRepository(IncidentRepository):
         models = result.scalars().all()
         return [self._to_domain(m) for m in models]
 
-    async def find_by_radius(self, lat: float, lng: float, radius_km: float, organization_id: str | None = None) -> list[Incident]:
+    async def find_by_radius(
+        self, lat: float, lng: float, radius_km: float, organization_id: str | None = None
+    ) -> list[Incident]:
         stmt = select(IncidentModel)
         if organization_id:
             stmt = stmt.where(IncidentModel.organization_id == organization_id)
-            
+
         # Optimization: Apply a rough bounding box in SQL to drastically reduce rows fetched
         # 1 degree of latitude is roughly 111 km
         delta_lat = radius_km / 111.0
         # 1 degree of longitude is roughly 111 km * cos(latitude)
         delta_lng = radius_km / (111.0 * math.cos(math.radians(lat))) if math.cos(math.radians(lat)) != 0 else 0
-        
+
         stmt = stmt.where(IncidentModel.latitude >= lat - delta_lat)
         stmt = stmt.where(IncidentModel.latitude <= lat + delta_lat)
         stmt = stmt.where(IncidentModel.longitude >= lng - delta_lng)
         stmt = stmt.where(IncidentModel.longitude <= lng + delta_lng)
-        
+
         result = await self.session.execute(stmt)
         models = result.scalars().all()
-        
+
         matching = []
         for m in models:
             dlat = math.radians(m.latitude - lat)

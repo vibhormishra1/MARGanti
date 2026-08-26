@@ -34,7 +34,9 @@ class SQLAlchemyAnalyticsRepository(AnalyticsRepository):
         incident_status_res = await self.session.execute(incident_status_stmt)
         inc_status_counts = [StatusCount(status=r[0], count=r[1]) for r in incident_status_res.all()]
 
-        incident_priority_stmt = select(IncidentModel.priority, func.count(IncidentModel.id)).group_by(IncidentModel.priority)
+        incident_priority_stmt = select(IncidentModel.priority, func.count(IncidentModel.id)).group_by(
+            IncidentModel.priority
+        )
         if organization_id:
             incident_priority_stmt = incident_priority_stmt.where(IncidentModel.organization_id == organization_id)
         incident_priority_res = await self.session.execute(incident_priority_stmt)
@@ -51,13 +53,13 @@ class SQLAlchemyAnalyticsRepository(AnalyticsRepository):
         if organization_id:
             trend_stmt = trend_stmt.where(IncidentModel.organization_id == organization_id)
         trend_res = await self.session.execute(trend_stmt)
-        
+
         # Group by day in python to support both SQLite and Postgres easily
         trend_map = {}
         for (reported_at,) in trend_res.all():
             day = reported_at.replace(hour=0, minute=0, second=0, microsecond=0)
             trend_map[day] = trend_map.get(day, 0) + 1
-            
+
         trend_data = [TrendDataPoint(timestamp=day, count=count) for day, count in sorted(trend_map.items())]
 
         incident_metrics = IncidentMetrics(
@@ -69,12 +71,14 @@ class SQLAlchemyAnalyticsRepository(AnalyticsRepository):
         )
 
         # Responders
-        responder_status_stmt = select(ResponderModel.status, func.count(ResponderModel.id)).group_by(ResponderModel.status)
+        responder_status_stmt = select(ResponderModel.status, func.count(ResponderModel.id)).group_by(
+            ResponderModel.status
+        )
         if organization_id:
             responder_status_stmt = responder_status_stmt.where(ResponderModel.organization_id == organization_id)
         responder_status_res = await self.session.execute(responder_status_stmt)
         resp_status_counts = [StatusCount(status=r[0], count=r[1]) for r in responder_status_res.all()]
-        
+
         total_responders = sum(s.count for s in resp_status_counts)
         active_responders = sum(s.count for s in resp_status_counts if s.status in ("ON_DUTY", "DEPLOYED"))
 

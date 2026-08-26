@@ -1,5 +1,4 @@
 from fastapi import APIRouter
-from pydantic import BaseModel
 
 from marg_api.modules.admin.presentation.routers import router as admin_router
 from marg_api.modules.analytics.presentation.routers import router as analytics_router
@@ -21,5 +20,3 @@ router.include_router(audit_router)
 router.include_router(reporting_router)
 router.include_router(admin_router)
 router.include_router(auth_router)
-
-

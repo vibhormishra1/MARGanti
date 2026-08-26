@@ -25,7 +25,11 @@ async def list_inventory(
     current_user: TokenData = Depends(get_current_user),
 ):
     items = await queries.list_inventory(category)
-    return [i for i in items if getattr(i, "organization_id", None) == current_user.organization_id or not hasattr(i, "organization_id")]
+    return [
+        i
+        for i in items
+        if getattr(i, "organization_id", None) == current_user.organization_id or not hasattr(i, "organization_id")
+    ]
 
 
 @router.post("/inventory/{item_id}/reserve", response_model=Reservation)
@@ -49,7 +53,7 @@ async def create_allocation(
     commands: ResourceCommands = Depends(get_resource_commands),
     current_user: TokenData = Depends(get_current_user),
 ):
-    # Depending on domain logic, we ideally want to enforce tenant check 
+    # Depending on domain logic, we ideally want to enforce tenant check
     # either by adding organization_id to AllocateResourceCommand or trusting incident_id isolation
     return await commands.create_allocation(cmd)
 
