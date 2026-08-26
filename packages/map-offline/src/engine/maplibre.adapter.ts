@@ -20,13 +20,15 @@ export class MapLibreAdapter implements IMapEngine {
           zoom: options.zoom ?? 1,
         });
 
+        let hasLoaded = false;
         this.map.once("load", () => {
+          hasLoaded = true;
           this.setupEventListeners();
           resolve();
         });
 
-        this.map.once("error", (e) => {
-          reject(new EngineInitError(e.error?.message || "Map failed to load"));
+        this.map.on("error", (e) => {
+          if (!hasLoaded) reject(new EngineInitError(e.error?.message || "Map failed to load"));
         });
       } catch (err: unknown) {
         reject(new EngineInitError(err instanceof Error ? err.message : String(err)));

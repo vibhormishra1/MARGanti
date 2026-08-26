@@ -24,9 +24,6 @@ export interface RouteResult {
 
 type OverpassElement = { id: number; type: string; lat?: number; lon?: number; center?: { lat: number; lon: number }; tags?: Record<string, string> };
 
-const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
-const OSRM_URL = "https://router.project-osrm.org/route/v1/driving";
-
 export function haversineMeters(from: [number, number], to: [number, number]): number {
   const [fromLat, fromLng] = from; const [toLat, toLng] = to;
   const earthRadius = 6371008.8; const radians = (degrees: number) => degrees * Math.PI / 180;
@@ -51,11 +48,11 @@ function classify(tags: Record<string, string> = {}): ResourceType | null {
   return null;
 }
 
-export async function fetchNearbyResources(latitude: number, longitude: number): Promise<NearbyResource[]> {
-  const query = `[out:json][timeout:15];(nwr(around:8000,${latitude},${longitude})["amenity"~"hospital|shelter|fire_station"];nwr(around:8000,${latitude},${longitude})["healthcare"~"hospital|clinic"];nwr(around:8000,${latitude},${longitude})["emergency"="ambulance_station"];);out center tags;`;
-  const response = await fetch(`${OVERPASS_URL}?data=${encodeURIComponent(query)}`, { headers: { Accept: "application/json" } });
-  if (!response.ok) throw new Error("Nearby directory is unavailable right now.");
-  const data = await response.json() as { elements?: OverpassElement[] };
+export function buildOverpassQuery(latitude: number, longitude: number): string {
+  return `[out:json][timeout:15];(nwr(around:8000,${latitude},${longitude})["amenity"~"hospital|shelter|fire_station"];nwr(around:8000,${latitude},${longitude})["healthcare"~"hospital|clinic"];nwr(around:8000,${latitude},${longitude})["emergency"="ambulance_station"];);out center tags;`;
+}
+
+export function parseNearbyResources(data: { elements?: OverpassElement[] }, latitude: number, longitude: number): NearbyResource[] {
   const origin: [number, number] = [latitude, longitude]; const seen = new Set<string>();
   return (data.elements ?? []).flatMap((element) => {
     const type = classify(element.tags); const coordinates = elementCoordinates(element); const name = element.tags?.name?.trim();
@@ -67,12 +64,14 @@ export async function fetchNearbyResources(latitude: number, longitude: number):
   }).sort((a, b) => a.distanceMeters - b.distanceMeters).slice(0, 12);
 }
 
+export async function fetchNearbyResources(latitude: number, longitude: number): Promise<NearbyResource[]> {
+  const response = await fetch(`/api/nearby?lat=${latitude}&lng=${longitude}`);
+  if (!response.ok) throw new Error("Nearby directory is unavailable right now.");
+  return response.json();
+}
+
 export async function fetchRoute(from: [number, number], to: [number, number]): Promise<RouteResult> {
-  const url = `${OSRM_URL}/${from[1]},${from[0]};${to[1]},${to[0]}?overview=full&geometries=geojson`;
-  const response = await fetch(url, { headers: { Accept: "application/json" } });
+  const response = await fetch(`/api/route?fromLat=${from[0]}&fromLng=${from[1]}&toLat=${to[0]}&toLng=${to[1]}`);
   if (!response.ok) throw new Error("Route unavailable right now.");
-  const data = await response.json() as { routes?: Array<{ distance: number; duration: number; geometry?: { coordinates: [number, number][] } }> };
-  const route = data.routes?.[0];
-  if (!route?.geometry?.coordinates?.length) throw new Error("Route unavailable right now.");
-  return { coordinates: route.geometry.coordinates, distanceMeters: route.distance, durationSeconds: route.duration, distanceLabel: formatDistance(route.distance), durationLabel: `~${Math.max(1, Math.round(route.duration / 60))} min` };
+  return response.json();
 }
