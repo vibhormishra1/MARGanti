@@ -22,9 +22,7 @@ export default function RootLayout({
       <body className={`${inter.className} min-h-screen bg-background font-sans antialiased`}>
         <QueryProvider>
           <AuthProvider>
-            <AuthGuard>
-              {children}
-            </AuthGuard>
+            {children}
           </AuthProvider>
         </QueryProvider>
       </body>

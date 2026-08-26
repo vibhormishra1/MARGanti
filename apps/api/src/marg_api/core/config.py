@@ -23,6 +23,19 @@ class Settings(BaseSettings):
     # CORS Configuration
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
 
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def _parse_cors_origins(cls, v: Any) -> list[str]:
+        if isinstance(v, str):
+            if v.startswith("["):
+                import json
+                try:
+                    return json.loads(v)
+                except ValueError:
+                    pass
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return v
+
     # Auth
     JWT_SECRET_KEY: str = _INSECURE_JWT_DEFAULT
     JWT_ALGORITHM: str = "HS256"
