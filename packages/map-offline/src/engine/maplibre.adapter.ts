@@ -93,4 +93,8 @@ export class MapLibreAdapter implements IMapEngine {
       this.map.removeSource(id);
     }
   }
+
+  queryRenderedFeatures(point: { x: number; y: number }, layers?: string[]): Array<{ properties?: Record<string, unknown> }> {
+    return (this.map?.queryRenderedFeatures([point.x, point.y], layers ? { layers } : undefined) ?? []) as Array<{ properties?: Record<string, unknown> }>;
+  }
 }

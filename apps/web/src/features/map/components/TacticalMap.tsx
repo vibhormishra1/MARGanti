@@ -21,9 +21,10 @@ const LIGHT_MAP_STYLE = {
 interface TacticalMapProps {
   children?: React.ReactNode;
   center?: [number, number];
+  focus?: [number, number];
 }
 
-export const TacticalMap: React.FC<TacticalMapProps> = ({ children, center = [0, 0] }) => {
+export const TacticalMap: React.FC<TacticalMapProps> = ({ children, center = [0, 0], focus }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const [engine, setEngine] = useState<IMapEngine | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -76,6 +77,10 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({ children, center = [0,
     });
     return () => { engine.removeLayer(layerId); engine.removeSource(sourceId); };
   }, [engine, center]);
+
+  useEffect(() => {
+    if (engine && focus) engine.setCenter(focus);
+  }, [engine, focus]);
 
   return (
     <div className="relative w-full h-full min-h-[400px] rounded-2xl overflow-hidden shadow-xl border border-slate-850">

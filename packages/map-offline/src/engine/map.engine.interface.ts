@@ -13,4 +13,5 @@ export interface IMapEngine {
   addLayer(layer: unknown): void;
   removeLayer(id: string): void;
   removeSource(id: string): void;
+  queryRenderedFeatures(point: { x: number; y: number }, layers?: string[]): Array<{ properties?: Record<string, unknown> }>;
 }
