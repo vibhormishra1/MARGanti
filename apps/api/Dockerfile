@@ -1,7 +1,7 @@
 # ── Stage 1: Build ─────────────────────────────────────────────────
 FROM python:3.13-slim AS builder
 
-WORKDIR /build
+WORKDIR /app
 
 # Install uv for deterministic dependency resolution
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
@@ -27,9 +27,9 @@ RUN groupadd --gid 1000 marg && \
 WORKDIR /app
 
 # Copy virtual environment and application from builder
-COPY --from=builder /build/.venv /app/.venv
-COPY --from=builder /build/src /app/src
-COPY --from=builder /build/alembic.ini /app/alembic.ini
+COPY --from=builder /app/.venv /app/.venv
+COPY --from=builder /app/src /app/src
+COPY --from=builder /app/alembic.ini /app/alembic.ini
 
 # Set PATH so the venv Python is used
 ENV PATH="/app/.venv/bin:$PATH" \
@@ -48,4 +48,4 @@ EXPOSE 8000
 USER marg
 
 # Graceful shutdown: uvicorn handles SIGTERM correctly
-CMD ["uvicorn", "marg_api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--log-level", "info"]
+CMD ["python", "-m", "uvicorn", "marg_api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--log-level", "info"]
