@@ -1,12 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   transpilePackages: [],
-  reactStrictMode: true,
-  experimental: {
-    turbo: {
-      resolveAlias: {}
-    }
-  }
+  reactStrictMode: true
 };
 
 export default nextConfig;
