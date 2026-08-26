@@ -9,7 +9,6 @@ import {
   OutlinedInput, 
   Button, 
   InputAdornment, 
-  Link as MuiLink,
   ThemeProvider,
   createTheme,
   CssBaseline,
@@ -20,6 +19,7 @@ import LocationOnIcon from "@mui/icons-material/LocationOn";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import SecurityIcon from "@mui/icons-material/Security";
+import { resolveLocation, reverseGeocode, ResolvedLocation } from "@/lib/location";
 
 const darkTheme = createTheme({
   palette: {
@@ -42,21 +42,41 @@ const darkTheme = createTheme({
 
 export default function LandingPage() {
   const [location, setLocation] = useState("");
+  const [resolved, setResolved] = useState<ResolvedLocation | null>(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
   const router = useRouter();
 
-  const handleContinue = (e?: React.FormEvent) => {
+  const handleContinue = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (location.trim()) {
-      router.push(`/emergency?location=${encodeURIComponent(location.trim())}`);
-    } else {
-      router.push(`/emergency`);
-    }
+    const result = resolved || await handleResolve();
+    if (!result) return;
+    router.push(`/emergency?display=${encodeURIComponent(result.displayName)}&lat=${result.latitude}&lng=${result.longitude}`);
+  };
+
+  const handleResolve = async (value = location): Promise<ResolvedLocation | null> => {
+    setBusy(true); setError(""); setResolved(null);
+    try {
+      const result = await resolveLocation(value);
+      setLocation(result.displayName.split(",")[0]); setResolved(result); return result;
+    } catch (err) { setError(err instanceof Error ? err.message : "Could not resolve that location."); return null; }
+    finally { setBusy(false); }
   };
 
   const handleUseCurrentLocation = () => {
-    // In a real app, this would use the Geolocation API
-    // For now, we simulate detecting a location
-    setLocation("Current Location (GPS)");
+    setError("");
+    if (!navigator.geolocation) { setError("This browser does not support location services."); return; }
+    setBusy(true); setResolved(null);
+    navigator.geolocation.getCurrentPosition(async ({ coords }) => {
+      try {
+        const result = await reverseGeocode(coords.latitude, coords.longitude);
+        setLocation(result.displayName.split(",")[0]); setResolved(result);
+      } catch (err) { setError(err instanceof Error ? err.message : "Could not name your current area."); }
+      finally { setBusy(false); }
+    }, (geoError) => {
+      const messages: Record<number, string> = { 1: "Location permission was denied. You can enter a city instead.", 2: "Your position is currently unavailable.", 3: "Location detection timed out. Try again or enter a city." };
+      setError(messages[geoError.code] || "Could not detect your current location."); setBusy(false);
+    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
   };
 
   return (
@@ -105,7 +125,9 @@ export default function LandingPage() {
                 fullWidth
                 placeholder="Enter your city or location..."
                 value={location}
-                onChange={(e) => setLocation(e.target.value)}
+                onChange={(e) => { setLocation(e.target.value); setResolved(null); setError(""); }}
+                onBlur={() => location.trim() && !resolved && handleResolve()}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleResolve(); } }}
                 autoFocus
                 startAdornment={
                   <InputAdornment position="start">
@@ -125,8 +147,11 @@ export default function LandingPage() {
                 onClick={handleUseCurrentLocation}
                 sx={{ mb: 4, color: "text.secondary", textTransform: "none" }}
               >
-                Use my current location
+                {busy ? "Resolving location..." : "Use my current location"}
               </Button>
+
+              {error && <Typography color="error" variant="body2" sx={{ mb: 2, textAlign: "center" }}>{error}</Typography>}
+              {resolved && <Typography color="success.main" variant="body2" sx={{ mb: 2, textAlign: "center" }}>Location verified · {resolved.latitude.toFixed(4)}, {resolved.longitude.toFixed(4)}</Typography>}
 
               <Typography variant="body2" color="text.secondary" align="center" sx={{ maxWidth: "80%", mb: 4 }}>
                 MARG will prepare emergency information, resources and guidance relevant to your area.
@@ -138,7 +163,7 @@ export default function LandingPage() {
                 fullWidth
                 onClick={handleContinue}
                 endIcon={<ArrowForwardIcon />}
-                disabled={!location.trim()}
+                disabled={!location.trim() || !resolved || busy}
                 sx={{ 
                   py: 1.5, 
                   fontWeight: "bold",

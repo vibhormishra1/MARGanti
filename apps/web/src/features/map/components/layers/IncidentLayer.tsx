@@ -5,9 +5,9 @@ import { useMapEngine } from "../../context/MapContext";
 import { useIncidents } from "@/features/incidents/api/incident.api";
 import { IncidentStatus } from "@marg/domain";
 
-export const IncidentLayer: React.FC = () => {
+export const IncidentLayer: React.FC<{ incidents?: Array<{ id: string; title: string; latitude: number; longitude: number; status: string; priority: string }> }> = ({ incidents: publicIncidents }) => {
   const { engine } = useMapEngine();
-  const { data: incidents } = useIncidents();
+  const { data: incidents } = useIncidents({ enabled: !publicIncidents });
 
   useEffect(() => {
     if (!engine || !incidents) return;
@@ -66,6 +66,14 @@ export const IncidentLayer: React.FC = () => {
       engine.removeSource(sourceId);
     };
   }, [engine, incidents]);
+
+  useEffect(() => {
+    if (!engine || !publicIncidents) return;
+    const sourceId = "incidents-source"; const layerId = "incidents-layer";
+    engine.addSource(sourceId, { type: "geojson", data: { type: "FeatureCollection", features: publicIncidents.map((inc) => ({ type: "Feature", geometry: { type: "Point", coordinates: [inc.longitude, inc.latitude] }, properties: inc })) } });
+    engine.addLayer({ id: layerId, type: "circle", source: sourceId, paint: { "circle-radius": 8, "circle-color": "#ef4444", "circle-stroke-width": 2, "circle-stroke-color": "#fff" } });
+    return () => { engine.removeLayer(layerId); engine.removeSource(sourceId); };
+  }, [engine, publicIncidents]);
 
   return null;
 };

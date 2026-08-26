@@ -29,10 +29,11 @@ const createIncident = async (payload: any): Promise<Incident> => {
 };
 
 // React Query Hooks
-export function useIncidents() {
+export function useIncidents(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: incidentKeys.lists(),
     queryFn: fetchIncidents,
+    enabled: options?.enabled ?? true,
   });
 }
 

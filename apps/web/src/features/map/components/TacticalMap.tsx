@@ -7,9 +7,10 @@ import "maplibre-gl/dist/maplibre-gl.css";
 
 interface TacticalMapProps {
   children?: React.ReactNode;
+  center?: [number, number];
 }
 
-export const TacticalMap: React.FC<TacticalMapProps> = ({ children }) => {
+export const TacticalMap: React.FC<TacticalMapProps> = ({ children, center = [0, 0] }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const [engine, setEngine] = useState<IMapEngine | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -25,8 +26,8 @@ export const TacticalMap: React.FC<TacticalMapProps> = ({ children }) => {
         await adapter.initialize({
           container: mapContainer.current!,
           style: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json", // Dark tactical base map
-          center: [0, 0], // Default center
-          zoom: 2,
+          center,
+          zoom: center[0] === 0 && center[1] === 0 ? 2 : 11,
         });
 
         currentEngine = adapter;
