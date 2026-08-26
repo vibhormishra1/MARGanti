@@ -21,7 +21,7 @@ dependencies = [
     "prometheus-client>=0.26.0",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "pytest>=8.2.2",
     "pytest-asyncio>=0.23.7",
