@@ -89,6 +89,19 @@ jobs:
             -e ENVIRONMENT=testing \
             -p 8000:8000 \
             marg-api:ci
-          sleep 3
-          curl -f http://localhost:8000/api/liveness || exit 1
+          # Wait for container to be ready with retries
+          for i in {1..30}; do
+            if curl -f http://localhost:8000/api/liveness 2>/dev/null; then
+              echo "API is healthy"
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "API failed to start. Container logs:"
+              docker logs marg-api-test
+              exit 1
+            fi
+            echo "Attempt $i/30: Waiting for API to be ready..."
+            sleep 1
+          done
+          
           docker stop marg-api-test
