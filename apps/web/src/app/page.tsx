@@ -2,201 +2,62 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { 
-  Box, 
-  Container, 
-  Typography, 
-  OutlinedInput, 
-  Button, 
-  InputAdornment, 
-  ThemeProvider,
-  createTheme,
-  CssBaseline,
-  Divider,
-  Fade
-} from "@mui/material";
-import LocationOnIcon from "@mui/icons-material/LocationOn";
-import MyLocationIcon from "@mui/icons-material/MyLocation";
-import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
-import SecurityIcon from "@mui/icons-material/Security";
-import { resolveLocation, reverseGeocode, ResolvedLocation } from "@/lib/location";
-
-const darkTheme = createTheme({
-  palette: {
-    mode: "dark",
-    primary: {
-      main: "#38bdf8", // Tailwind sky-400
-    },
-    background: {
-      default: "#020617", // Tailwind slate-950
-      paper: "#0f172a", // Tailwind slate-900
-    },
-  },
-  typography: {
-    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
-  },
-  shape: {
-    borderRadius: 12,
-  },
-});
+import { ArrowForward, LocationOn, MyLocation, Security } from "@mui/icons-material";
+import { coordinateFallback, resolveLocation, reverseGeocode, ResolvedLocation } from "@/lib/location";
 
 export default function LandingPage() {
+  const router = useRouter();
   const [location, setLocation] = useState("");
   const [resolved, setResolved] = useState<ResolvedLocation | null>(null);
-  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
-  const router = useRouter();
 
-  const handleContinue = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const result = resolved || await handleResolve();
-    if (!result) return;
-    router.push(`/emergency?display=${encodeURIComponent(result.displayName)}&lat=${result.latitude}&lng=${result.longitude}`);
-  };
-
-  const handleResolve = async (value = location): Promise<ResolvedLocation | null> => {
-    setBusy(true); setError(""); setResolved(null);
+  const openEmergency = (result: ResolvedLocation) => router.push(`/emergency?display=${encodeURIComponent(result.displayName)}&lat=${result.latitude}&lng=${result.longitude}`);
+  const resolve = async (value = location) => {
+    setBusy(true); setMessage(""); setResolved(null);
     try {
       const result = await resolveLocation(value);
       setLocation(result.displayName.split(",")[0]); setResolved(result); return result;
-    } catch (err) { setError(err instanceof Error ? err.message : "Could not resolve that location."); return null; }
-    finally { setBusy(false); }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "We couldn't find that location. Try a city or recognizable place.");
+      return null;
+    } finally { setBusy(false); }
   };
 
-  const handleUseCurrentLocation = () => {
-    setError("");
-    if (!navigator.geolocation) { setError("This browser does not support location services."); return; }
-    setBusy(true); setResolved(null);
+  const continueToEmergency = async (event?: React.FormEvent) => {
+    event?.preventDefault();
+    const result = resolved || await resolve();
+    if (result) openEmergency(result);
+  };
+
+  const useCurrentLocation = () => {
+    setMessage(""); setBusy(true); setResolved(null);
+    if (!navigator.geolocation) { setMessage("This browser does not support location services. Enter a city instead."); setBusy(false); return; }
     navigator.geolocation.getCurrentPosition(async ({ coords }) => {
       try {
         const result = await reverseGeocode(coords.latitude, coords.longitude);
-        setLocation(result.displayName.split(",")[0]); setResolved(result);
-      } catch (err) { setError(err instanceof Error ? err.message : "Could not name your current area."); }
-      finally { setBusy(false); }
-    }, (geoError) => {
-      const messages: Record<number, string> = { 1: "Location permission was denied. You can enter a city instead.", 2: "Your position is currently unavailable.", 3: "Location detection timed out. Try again or enter a city." };
-      setError(messages[geoError.code] || "Could not detect your current location."); setBusy(false);
+        setLocation(result.displayName.split(",")[0]); setResolved(result); openEmergency(result);
+      } catch {
+        // Coordinates are still safe and useful even when the naming provider is unavailable.
+        const result = coordinateFallback(coords.latitude, coords.longitude);
+        setLocation("Current location"); setResolved(result); openEmergency(result);
+      } finally { setBusy(false); }
+    }, (error) => {
+      const messages: Record<number, string> = { 1: "Location permission was denied. You can enter a city instead.", 2: "Your position is currently unavailable. Try entering a city.", 3: "Location detection timed out. Try again or enter a city." };
+      setMessage(messages[error.code] || "We couldn't detect your location. Try entering a city."); setBusy(false);
     }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
   };
 
-  return (
-    <ThemeProvider theme={darkTheme}>
-      <CssBaseline />
-      <Box 
-        sx={{ 
-          minHeight: "100vh", 
-          display: "flex", 
-          flexDirection: "column", 
-          justifyContent: "center", 
-          alignItems: "center",
-          background: "radial-gradient(circle at center, #0f172a 0%, #020617 100%)",
-          px: 2
-        }}
-      >
-        <Fade in={true} timeout={1000}>
-          <Container maxWidth="sm">
-            <Box sx={{ textAlign: "center", mb: 6 }}>
-              <Typography variant="h2" component="h1" color="white" gutterBottom sx={{ fontWeight: "bold" }}>
-                MARG
-              </Typography>
-              <Typography variant="h6" color="text.secondary" sx={{ letterSpacing: 1.5, textTransform: "uppercase", fontSize: "0.85rem" }}>
-                Emergency Operating System
-              </Typography>
-            </Box>
-
-            <Box 
-              component="form" 
-              onSubmit={handleContinue}
-              sx={{ 
-                bgcolor: "background.paper", 
-                p: { xs: 4, sm: 6 }, 
-                borderRadius: 4, 
-                boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255,255,255,0.05)",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center"
-              }}
-            >
-              <Typography variant="h5" color="white" sx={{ fontWeight: 500, mb: 4 }}>
-                Where are you?
-              </Typography>
-
-              <OutlinedInput
-                fullWidth
-                placeholder="Enter your city or location..."
-                value={location}
-                onChange={(e) => { setLocation(e.target.value); setResolved(null); setError(""); }}
-                onBlur={() => location.trim() && !resolved && handleResolve()}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleResolve(); } }}
-                autoFocus
-                startAdornment={
-                  <InputAdornment position="start">
-                    <LocationOnIcon color="action" />
-                  </InputAdornment>
-                }
-                sx={{ 
-                  mb: 2,
-                  bgcolor: "rgba(0,0,0,0.2)",
-                  '&:hover': { bgcolor: "rgba(0,0,0,0.3)" }
-                }}
-              />
-
-              <Button 
-                variant="text" 
-                startIcon={<MyLocationIcon />}
-                onClick={handleUseCurrentLocation}
-                sx={{ mb: 4, color: "text.secondary", textTransform: "none" }}
-              >
-                {busy ? "Resolving location..." : "Use my current location"}
-              </Button>
-
-              {error && <Typography color="error" variant="body2" sx={{ mb: 2, textAlign: "center" }}>{error}</Typography>}
-              {resolved && <Typography color="success.main" variant="body2" sx={{ mb: 2, textAlign: "center" }}>Location verified · {resolved.latitude.toFixed(4)}, {resolved.longitude.toFixed(4)}</Typography>}
-
-              <Typography variant="body2" color="text.secondary" align="center" sx={{ maxWidth: "80%", mb: 4 }}>
-                MARG will prepare emergency information, resources and guidance relevant to your area.
-              </Typography>
-
-              <Button
-                variant="contained"
-                size="large"
-                fullWidth
-                onClick={handleContinue}
-                endIcon={<ArrowForwardIcon />}
-                disabled={!location.trim() || !resolved || busy}
-                sx={{ 
-                  py: 1.5, 
-                  fontWeight: "bold",
-                  fontSize: "1.1rem"
-                }}
-              >
-                Continue
-              </Button>
-            </Box>
-
-            <Box sx={{ mt: 8, textAlign: "center" }}>
-              <Divider sx={{ mb: 3, '&::before, &::after': { borderColor: 'rgba(255,255,255,0.1)' } }}>
-                <Typography variant="body2" color="text.secondary">
-                  Need operational access?
-                </Typography>
-              </Divider>
-              <Button
-                variant="outlined"
-                color="inherit"
-                startIcon={<SecurityIcon />}
-                onClick={() => router.push("/admin")}
-                sx={{ 
-                  color: "text.secondary", 
-                  borderColor: "rgba(255,255,255,0.1)",
-                  '&:hover': { borderColor: "rgba(255,255,255,0.3)", color: "white" }
-                }}
-              >
-                Command Center
-              </Button>
-            </Box>
-          </Container>
-        </Fade>
-      </Box>
-    </ThemeProvider>
-  );
+  return <main className="min-h-screen overflow-hidden bg-[#f4f7f5] text-slate-800">
+    <div className="pointer-events-none absolute -left-24 -top-28 h-80 w-80 rounded-full bg-[#dcece5] opacity-70 blur-3xl" />
+    <div className="pointer-events-none absolute -bottom-40 -right-24 h-96 w-96 rounded-full bg-[#e2edf2] opacity-80 blur-3xl" />
+    <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col px-6 py-8 sm:px-10 lg:px-16">
+      <header className="flex items-center justify-between"><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-teal-700 text-lg font-black text-white shadow-sm">M</div><div><div className="text-xl font-black tracking-tight text-slate-900">MARG</div><div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Crisis management</div></div></div><div className="hidden items-center gap-2 text-sm text-slate-500 sm:flex"><span className="h-2 w-2 rounded-full bg-emerald-500" /> Available when you need us</div></header>
+      <div className="grid flex-1 items-center gap-12 py-14 lg:grid-cols-[1fr_0.9fr] lg:gap-20">
+        <section className="animate-[rise-in_700ms_ease-out_both]"><div className="mb-8 inline-flex items-center gap-2 rounded-full border border-teal-200 bg-white/80 px-3 py-1.5 text-xs font-semibold text-teal-800 shadow-sm"><span className="h-2 w-2 animate-pulse rounded-full bg-teal-500" /> A calmer way through an emergency</div><h1 className="max-w-xl text-5xl font-black leading-[1.05] tracking-[-0.04em] text-slate-900 sm:text-6xl">Help starts with knowing <span className="text-teal-700">where you are.</span></h1><p className="mt-6 max-w-lg text-lg leading-8 text-slate-600">MARG brings together local context, nearby help, and clear next steps when every moment matters.</p><div className="mt-10 flex flex-wrap gap-5 text-sm text-slate-600"><span className="flex items-center gap-2"><span className="rounded-full bg-teal-100 p-1.5 text-teal-700">✓</span> Local context</span><span className="flex items-center gap-2"><span className="rounded-full bg-teal-100 p-1.5 text-teal-700">✓</span> Clear guidance</span><span className="flex items-center gap-2"><span className="rounded-full bg-teal-100 p-1.5 text-teal-700">✓</span> Human-first</span></div></section>
+        <section className="animate-[rise-in_700ms_120ms_ease-out_both] rounded-[2rem] border border-white bg-white/90 p-6 shadow-[0_24px_70px_rgba(47,76,73,0.12)] sm:p-9"><div className="mb-7"><p className="text-sm font-semibold text-teal-700">Let’s begin</p><h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">Where are you right now?</h2><p className="mt-2 text-sm leading-6 text-slate-500">We’ll use your area to show relevant emergency information.</p></div><form onSubmit={continueToEmergency} className="space-y-4"><label htmlFor="location" className="sr-only">City or location</label><div className={`flex items-center rounded-2xl border bg-[#f7faf9] px-4 transition-all duration-300 focus-within:border-teal-500 focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(13,148,136,0.10)] ${message ? "border-rose-300" : "border-slate-200"}`}><LocationOn className="mr-3 text-slate-400" /><input id="location" value={location} onChange={(event) => { setLocation(event.target.value); setResolved(null); setMessage(""); }} onBlur={() => location.trim() && !resolved && resolve()} placeholder="Enter a city or recognizable place" className="min-w-0 flex-1 bg-transparent py-4 text-base text-slate-800 outline-none placeholder:text-slate-400" autoComplete="address-level2" /></div><button type="button" onClick={useCurrentLocation} disabled={busy} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 transition hover:border-teal-300 hover:bg-teal-50 hover:text-teal-800 disabled:cursor-wait disabled:opacity-60"><MyLocation className={busy ? "animate-spin text-teal-600" : "text-teal-700"} fontSize="small" />{busy ? "Finding your area…" : "Use my current location"}</button>{message && <p role="alert" className="rounded-xl bg-rose-50 px-3 py-2 text-sm leading-5 text-rose-700">{message}</p>}{resolved && <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm leading-5 text-emerald-800">Location ready · {resolved.latitude.toFixed(4)}° N, {resolved.longitude.toFixed(4)}° E</p>}<button type="submit" disabled={busy || !location.trim()} className="group flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl bg-teal-700 px-5 text-base font-bold text-white shadow-lg shadow-teal-700/20 transition hover:-translate-y-0.5 hover:bg-teal-800 hover:shadow-xl disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none">Continue <ArrowForward className="transition-transform group-hover:translate-x-1" /></button></form></section>
+      </div>
+      <footer className="flex flex-col items-center justify-between gap-4 border-t border-slate-200/80 pt-6 text-sm text-slate-500 sm:flex-row"><span>For immediate danger, contact your local emergency services.</span><button onClick={() => router.push("/admin")} className="flex items-center gap-2 rounded-lg px-3 py-2 font-semibold transition hover:bg-white hover:text-slate-800"><Security fontSize="small" /> Command Center</button></footer>
+    </div>
+  </main>;
 }

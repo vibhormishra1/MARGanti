@@ -40,6 +40,10 @@ export async function resolveLocation(query: string): Promise<ResolvedLocation> 
 
 export async function reverseGeocode(latitude: number, longitude: number): Promise<ResolvedLocation> {
   const places = await nominatim(`/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`);
-  if (!places.length) throw new Error("GPS found your coordinates, but MARG could not name this area.");
+  if (!places.length) throw new Error("Reverse geocoding returned no place name.");
   return toLocation(places[0], "gps");
+}
+
+export function coordinateFallback(latitude: number, longitude: number): ResolvedLocation {
+  return { displayName: "Current location", latitude, longitude, source: "gps" };
 }
