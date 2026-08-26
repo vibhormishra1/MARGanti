@@ -2,8 +2,16 @@
 
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from "react";
 import { SyncOperation, SyncConflict } from "@marg/domain";
-import { MockSyncAdapter } from "@marg/cloud-adapter";
 import { SyncQueueLocalRepository, SyncConflictLocalRepository } from "@marg/storage-local";
+
+class MockSyncAdapter {
+  constructor(private queueRepo: any, private conflictRepo: any) {}
+  async pullUpdates() {}
+  async pushOperations() {}
+  async enqueueMutation(op: SyncOperation) {
+    await this.queueRepo.enqueue(op);
+  }
+}
 
 interface SyncContextValue {
   isOnline: boolean;
