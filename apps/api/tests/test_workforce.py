@@ -10,7 +10,7 @@ async def test_create_team_and_checkin(async_client: AsyncClient):
         "name": "NDRF Response Unit 1",
         "team_leader_id": "resp-001",
     }
-    create_res = await async_client.post("/api/workforce/teams", json=team_payload)
+    create_res = await async_client.post("/api/v1/workforce/teams", json=team_payload)
     assert create_res.status_code == 200
     team = create_res.json()
     assert team["name"] == "NDRF Response Unit 1"

@@ -14,7 +14,7 @@ async def test_report_and_get_incident(async_client: AsyncClient):
         "priority": "HIGH",
         "reporter_id": "user-456",
     }
-    response = await async_client.post("/api/incidents/", json=payload)
+    response = await async_client.post("/api/v1/incidents/", json=payload)
     assert response.status_code == 201
     created = response.json()
     incident_id = created["id"]
@@ -22,21 +22,21 @@ async def test_report_and_get_incident(async_client: AsyncClient):
     assert created["status"] == "REPORTED"
 
     # Get incident by ID
-    get_res = await async_client.get(f"/api/incidents/{incident_id}")
+    get_res = await async_client.get(f"/api/v1/incidents/{incident_id}")
     assert get_res.status_code == 200
     fetched = get_res.json()
     assert fetched["id"] == incident_id
     assert fetched["reporter_id"] == "test-user-123"
 
     # List incidents
-    list_res = await async_client.get("/api/incidents/?priority=HIGH")
+    list_res = await async_client.get("/api/v1/incidents/?priority=HIGH")
     assert list_res.status_code == 200
     incidents = list_res.json()
     assert len(incidents) == 1
     assert incidents[0]["id"] == incident_id
 
     patch_res = await async_client.patch(
-        f"/api/incidents/{incident_id}/status?new_status=ACTIVE&actor_id=user-789&reason=Team%20dispatched"
+        f"/api/v1/incidents/{incident_id}/status?new_status=ACTIVE&actor_id=user-789&reason=Team%20dispatched"
     )
     assert patch_res.status_code == 200
     updated = patch_res.json()
@@ -53,7 +53,7 @@ async def test_cross_tenant_incident_access(async_client: AsyncClient):
         "longitude": 91.7610,
         "priority": "HIGH",
     }
-    create_res = await async_client.post("/api/incidents/", json=payload)
+    create_res = await async_client.post("/api/v1/incidents/", json=payload)
     assert create_res.status_code == 201
     incident_id = create_res.json()["id"]
 
@@ -67,7 +67,7 @@ async def test_cross_tenant_incident_access(async_client: AsyncClient):
     app.dependency_overrides[get_current_user] = override_different_tenant
 
     # 3. Try to access the incident from the different tenant
-    get_res = await async_client.get(f"/api/incidents/{incident_id}")
+    get_res = await async_client.get(f"/api/v1/incidents/{incident_id}")
 
     # Clean up override immediately by restoring the original mock
     from marg_api.core.security import get_current_user
